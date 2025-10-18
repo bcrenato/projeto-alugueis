@@ -2,8 +2,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const auth = firebase.auth();
     const database = firebase.database();
     
-    // Login do administrador (simplificado para demonstração)
-    // Em um sistema real, você teria uma autenticação separada para admin
+    // Variável para armazenar o UID do inquilino sendo editado
+    let inquilinoEditando = null;
     
     // Carregar lista de inquilinos
     function carregarInquilinos() {
@@ -88,10 +88,10 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // === NOVA FUNÇÃO: Carregar pagamentos efetuados ===
+    // === FUNÇÃO: Carregar pagamentos efetuados ===
     function carregarPagamentosEfetuados() {
         const tabela = document.getElementById('tabelaEfetuados');
-        if (!tabela) return; // Verifica se a tabela existe
+        if (!tabela) return;
         
         tabela.innerHTML = '';
         
@@ -110,9 +110,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             const pagamento = childSnapshotPagamento.val();
                             const idPagamento = childSnapshotPagamento.key;
                             
-                            // Filtra apenas pagamentos confirmados/pagos
                             if (pagamento.status === 'pago' || pagamento.status === 'aprovado') {
-                                // Aplica filtros de mês e ano
                                 if (filtroMes && pagamento.mes !== filtroMes) return;
                                 if (filtroAno && pagamento.ano !== filtroAno) return;
                                 
@@ -125,14 +123,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                     });
                     
-                    // Ordena por data mais recente primeiro
                     pagamentosEfetuados.sort((a, b) => {
                         const dataA = new Date(a.pagamento.dataPagamento || a.pagamento.dataSolicitacao);
                         const dataB = new Date(b.pagamento.dataPagamento || b.pagamento.dataSolicitacao);
                         return dataB - dataA;
                     });
                     
-                    // Processa cada pagamento e busca o nome do inquilino
                     let processados = 0;
                     if (pagamentosEfetuados.length === 0) {
                         tabela.innerHTML = `
@@ -197,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // === NOVA FUNÇÃO: Formatar data ===
+    // === FUNÇÃO: Formatar data ===
     function formatarData(dataString) {
         if (!dataString) return 'N/A';
         try {
@@ -208,7 +204,42 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Adicionar novo inquilino
+    // === FUNÇÃO: Abrir modal de edição ===
+    window.editarInquilino = function(uid) {
+        inquilinoEditando = uid;
+        
+        // Buscar dados do inquilino
+        database.ref('inquilinos/' + uid).once('value')
+            .then((snapshot) => {
+                if (snapshot.exists()) {
+                    const inquilino = snapshot.val();
+                    
+                    // Preencher o formulário com os dados atuais
+                    document.getElementById('nome').value = inquilino.nome;
+                    document.getElementById('cpf').value = inquilino.cpf;
+                    document.getElementById('casa').value = inquilino.casa;
+                    document.getElementById('aluguel').value = inquilino.aluguel;
+                    document.getElementById('agua').value = inquilino.agua;
+                    
+                    // Alterar o título do modal e texto do botão
+                    document.querySelector('#modalNovoInquilino .modal-title').textContent = 'Editar Inquilino';
+                    document.getElementById('btnSalvarInquilino').textContent = 'Atualizar';
+                    
+                    // Esconder campo de senha para edição
+                    document.getElementById('senha').closest('.mb-3').style.display = 'none';
+                    
+                    // Abrir o modal
+                    const modal = new bootstrap.Modal(document.getElementById('modalNovoInquilino'));
+                    modal.show();
+                }
+            })
+            .catch((error) => {
+                console.error('Erro ao carregar dados do inquilino:', error);
+                alert('Erro ao carregar dados do inquilino.');
+            });
+    };
+    
+    // === FUNÇÃO: Salvar/Atualizar inquilino ===
     document.getElementById('btnSalvarInquilino').addEventListener('click', function() {
         const nome = document.getElementById('nome').value;
         const cpf = document.getElementById('cpf').value;
@@ -217,32 +248,88 @@ document.addEventListener('DOMContentLoaded', function() {
         const aluguel = parseFloat(document.getElementById('aluguel').value);
         const agua = parseFloat(document.getElementById('agua').value);
         
-        // Criar usuário no Firebase Auth
-        auth.createUserWithEmailAndPassword(`${cpf}@alugueis.com`, senha)
-            .then((userCredential) => {
-                const uid = userCredential.user.uid;
+        if (inquilinoEditando) {
+            // MODO EDIÇÃO - Atualizar inquilino existente
+            const dadosAtualizados = {
+                nome: nome,
+                cpf: cpf,
+                casa: casa,
+                aluguel: aluguel,
+                agua: agua
+            };
+            
+            // Se foi informada uma nova senha, atualizar no Auth também
+            if (senha && senha.trim() !== '') {
+                auth.currentUser.updatePassword(senha)
+                    .then(() => {
+                        console.log('Senha atualizada com sucesso');
+                    })
+                    .catch((error) => {
+                        console.error('Erro ao atualizar senha:', error);
+                        // Continua mesmo se der erro na senha
+                    });
+            }
+            
+            database.ref('inquilinos/' + inquilinoEditando).update(dadosAtualizados)
+                .then(() => {
+                    alert('Inquilino atualizado com sucesso!');
+                    fecharModal();
+                    carregarInquilinos();
+                })
+                .catch((error) => {
+                    console.error('Erro ao atualizar inquilino:', error);
+                    alert('Erro ao atualizar inquilino. Verifique os dados e tente novamente.');
+                });
                 
-                // Salvar dados no Realtime Database
-                const inquilino = {
-                    nome: nome,
-                    cpf: cpf,
-                    casa: casa,
-                    aluguel: aluguel,
-                    agua: agua
-                };
-                
-                return database.ref('inquilinos/' + uid).set(inquilino);
-            })
-            .then(() => {
-                alert('Inquilino cadastrado com sucesso!');
-                document.querySelector('[data-bs-dismiss="modal"]').click();
-                document.getElementById('formNovoInquilino').reset();
-                carregarInquilinos();
-            })
-            .catch((error) => {
-                console.error('Erro ao cadastrar inquilino:', error);
-                alert('Erro ao cadastrar inquilino. Verifique os dados e tente novamente.');
-            });
+        } else {
+            // MODO NOVO - Criar novo inquilino
+            if (!senha) {
+                alert('Por favor, informe uma senha para o novo inquilino.');
+                return;
+            }
+            
+            auth.createUserWithEmailAndPassword(`${cpf}@alugueis.com`, senha)
+                .then((userCredential) => {
+                    const uid = userCredential.user.uid;
+                    
+                    const inquilino = {
+                        nome: nome,
+                        cpf: cpf,
+                        casa: casa,
+                        aluguel: aluguel,
+                        agua: agua
+                    };
+                    
+                    return database.ref('inquilinos/' + uid).set(inquilino);
+                })
+                .then(() => {
+                    alert('Inquilino cadastrado com sucesso!');
+                    fecharModal();
+                    carregarInquilinos();
+                })
+                .catch((error) => {
+                    console.error('Erro ao cadastrar inquilino:', error);
+                    alert('Erro ao cadastrar inquilino. Verifique os dados e tente novamente.');
+                });
+        }
+    });
+    
+    // === FUNÇÃO: Fechar modal e resetar formulário ===
+    function fecharModal() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalNovoInquilino'));
+        modal.hide();
+        
+        // Resetar formulário
+        document.getElementById('formNovoInquilino').reset();
+        document.querySelector('#modalNovoInquilino .modal-title').textContent = 'Adicionar Inquilino';
+        document.getElementById('btnSalvarInquilino').textContent = 'Salvar';
+        document.getElementById('senha').closest('.mb-3').style.display = 'block';
+        inquilinoEditando = null;
+    }
+    
+    // === EVENTO: Quando o modal é fechado ===
+    document.getElementById('modalNovoInquilino').addEventListener('hidden.bs.modal', function() {
+        fecharModal();
     });
     
     // Funções globais para os botões de ação
@@ -255,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(() => {
                 alert('Pagamento confirmado!');
                 carregarPagamentosPendentes();
-                carregarPagamentosEfetuados(); // Atualiza a aba de efetuados também
+                carregarPagamentosEfetuados();
             })
             .catch((error) => {
                 console.error('Erro ao confirmar pagamento:', error);
@@ -275,28 +362,38 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     };
     
-    window.editarInquilino = function(uid) {
-        // Implementar edição de inquilino
-        alert('Funcionalidade de edição em desenvolvimento');
-    };
-    
     window.excluirInquilino = function(uid) {
-        if (confirm('Tem certeza que deseja excluir este inquilino?')) {
-            database.ref('inquilinos/' + uid).remove()
+        if (confirm('Tem certeza que deseja excluir este inquilino?\n\nEsta ação não pode ser desfeita!')) {
+            // Primeiro excluir do Authentication
+            auth.getUser(uid)
+                .then((userRecord) => {
+                    return auth.deleteUser(uid);
+                })
+                .then(() => {
+                    // Depois excluir do Realtime Database
+                    return database.ref('inquilinos/' + uid).remove();
+                })
                 .then(() => {
                     alert('Inquilino excluído com sucesso!');
                     carregarInquilinos();
                 })
                 .catch((error) => {
                     console.error('Erro ao excluir inquilino:', error);
-                    alert('Erro ao excluir inquilino.');
+                    
+                    // Se não conseguir excluir do Auth, tenta apenas do Database
+                    database.ref('inquilinos/' + uid).remove()
+                        .then(() => {
+                            alert('Inquilino excluído do sistema, mas pode restar o usuário no login.');
+                            carregarInquilinos();
+                        })
+                        .catch((error2) => {
+                            alert('Erro ao excluir inquilino completamente.');
+                        });
                 });
         }
     };
 
-    // === NOVOS EVENT LISTENERS para as abas ===
-    
-    // Recarregar dados quando mudar de aba
+    // === EVENT LISTENERS para as abas ===
     const tabs = document.querySelectorAll('#adminTabs button[data-bs-toggle="tab"]');
     tabs.forEach(tab => {
         tab.addEventListener('shown.bs.tab', function(event) {
