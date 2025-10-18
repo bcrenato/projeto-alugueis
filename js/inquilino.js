@@ -1,10 +1,11 @@
-// inquilino.js - Versão Corrigida com Verificação de Dados
+// inquilino.js - Versão Corrigida com QRCode Funcional
 console.log('=== INICIANDO SISTEMA PIX ===');
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ DOM Carregado');
     console.log('🔍 Verificando bibliotecas...');
     console.log('QRCode:', typeof QRCode);
+    console.log('qrcode:', typeof qrcode);
     console.log('Firebase:', typeof firebase);
     console.log('Bootstrap:', typeof bootstrap);
 
@@ -187,13 +188,6 @@ document.addEventListener('DOMContentLoaded', function() {
     function carregarDadosInquilino(uid) {
         console.log('📥 Carregando dados do inquilino:', uid);
         
-        // Mostrar loading
-        document.getElementById('nomeInquilino').textContent = 'Carregando...';
-        document.getElementById('enderecoInquilino').textContent = 'Carregando...';
-        document.getElementById('valorAluguel').textContent = '0,00';
-        document.getElementById('valorAgua').textContent = '0,00';
-        document.getElementById('valorTotal').textContent = '0,00';
-        
         database.ref('inquilinos/' + uid).once('value')
             .then((snapshot) => {
                 if (snapshot.exists()) {
@@ -204,13 +198,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     carregarHistoricoPagamentos(uid);
                 } else {
                     console.error('❌ Dados do inquilino não encontrados para UID:', uid);
-                    document.getElementById('nomeInquilino').textContent = 'Erro ao carregar';
                     alert('❌ Erro: Seus dados não foram encontrados. Entre em contato com o administrador.');
                 }
             })
             .catch((error) => {
                 console.error('❌ Erro ao carregar dados:', error);
-                document.getElementById('nomeInquilino').textContent = 'Erro ao carregar';
                 alert('❌ Erro ao carregar dados. Tente novamente.');
             });
     }
@@ -361,39 +353,77 @@ document.addEventListener('DOMContentLoaded', function() {
         const qrDiv = document.getElementById('qrcodePix');
         qrDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Gerando QR Code...</span></div>';
         
-        console.log('🔍 Verificando QRCode antes de gerar:', typeof QRCode);
+        console.log('🔍 Verificando bibliotecas QRCode disponíveis...');
+        console.log('QRCode:', typeof QRCode);
+        console.log('qrcode:', typeof qrcode);
         
-        // Tentar gerar QR Code
+        // Tentar gerar QR Code com diferentes bibliotecas
         setTimeout(() => {
             gerarQRCode(qrDiv, payloadPix);
         }, 100);
     }
     
     function gerarQRCode(qrDiv, payloadPix) {
-        // Método 1: Usando QRCode.toCanvas se disponível
-        if (typeof QRCode !== 'undefined' && QRCode.toCanvas) {
-            console.log('✅ Usando QRCode.toCanvas');
+        // Método 1: Usando QRCode (qrcode.js)
+        if (typeof QRCode !== 'undefined') {
+            console.log('✅ Usando QRCode (qrcode.js)');
             try {
-                QRCode.toCanvas(qrDiv, payloadPix, { 
+                // Limpar o div primeiro
+                qrDiv.innerHTML = '';
+                
+                // Criar nova instância do QRCode
+                new QRCode(qrDiv, {
+                    text: payloadPix,
                     width: 200,
-                    margin: 2,
-                    color: { dark: '#000000', light: '#FFFFFF' }
-                }, function(error) {
-                    if (error) {
-                        console.error('❌ Erro QRCode.toCanvas:', error);
-                        mostrarFallbackQRCode(qrDiv);
-                    } else {
-                        console.log('✅ QR Code gerado com sucesso!');
-                    }
+                    height: 200,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
                 });
+                
+                console.log('✅ QR Code gerado com sucesso usando QRCode!');
                 return;
             } catch (error) {
-                console.error('❌ Erro no QRCode.toCanvas:', error);
+                console.error('❌ Erro no QRCode:', error);
             }
         }
         
-        // Método 2: Fallback
-        console.log('⚠️ Usando fallback para QR Code');
+        // Método 2: Usando qrcode (outra biblioteca)
+        if (typeof qrcode !== 'undefined') {
+            console.log('🔄 Tentando usar qrcode');
+            try {
+                qrDiv.innerHTML = '';
+                const qr = qrcode(0, 'M');
+                qr.addData(payloadPix);
+                qr.make();
+                
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const size = 200;
+                canvas.width = size;
+                canvas.height = size;
+                
+                const moduleCount = qr.getModuleCount();
+                const tileSize = size / moduleCount;
+                
+                // Desenhar QR Code manualmente
+                for (let row = 0; row < moduleCount; row++) {
+                    for (let col = 0; col < moduleCount; col++) {
+                        ctx.fillStyle = qr.isDark(row, col) ? '#000000' : '#FFFFFF';
+                        ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
+                    }
+                }
+                
+                qrDiv.appendChild(canvas);
+                console.log('✅ QR Code gerado com sucesso usando qrcode!');
+                return;
+            } catch (error) {
+                console.error('❌ Erro no qrcode:', error);
+            }
+        }
+        
+        // Método 3: Fallback
+        console.log('⚠️ Nenhuma biblioteca QRCode disponível, usando fallback');
         mostrarFallbackQRCode(qrDiv);
     }
     
