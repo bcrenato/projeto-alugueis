@@ -4,7 +4,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let dadosInquilino = {};
     let metodoPagamentoSelecionado = '';
-    
+    let modalPagamento, modalPix;
+
     // Configurações PIX
     const CONFIG_PIX = {
         chave: "23198587845",
@@ -12,9 +13,16 @@ document.addEventListener('DOMContentLoaded', function() {
         cidade: "Nilopolis"
     };
 
+    // Inicializar modais
+    function inicializarModais() {
+        modalPagamento = new bootstrap.Modal(document.getElementById('modalPagamento'));
+        modalPix = new bootstrap.Modal(document.getElementById('modalPix'));
+    }
+
     // Verificar autenticação e carregar dados
     auth.onAuthStateChanged((user) => {
         if (user) {
+            inicializarModais();
             carregarDadosInquilino(user.uid);
         } else {
             window.location.href = 'login.html';
@@ -108,13 +116,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             <td>R$ ${pagamento.valor.toFixed(2)}</td>
                             <td>${dataPagamento}</td>
                             <td>${pagamento.metodo ? pagamento.metodo.charAt(0).toUpperCase() + pagamento.metodo.slice(1) : '-'}</td>
-                            <td class="${statusClass}">${statusText}</td>
+                            <td class="${statusClass} fw-bold">${statusText}</td>
                         `;
                         
                         corpoTabela.appendChild(linha);
                     });
                 } else {
-                    corpoTabela.innerHTML = '<tr><td colspan="5" class="text-center">Nenhum pagamento registrado</td></tr>';
+                    corpoTabela.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum pagamento registrado</td></tr>';
                 }
             })
             .catch((error) => {
@@ -123,45 +131,93 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // Configurar botões de pagamento no modal principal
+    // === EVENT LISTENERS ===
+    
+    // Abrir modal de pagamento
+    document.getElementById('btnAbrirModalPagamento').addEventListener('click', function() {
+        modalPagamento.show();
+    });
+    
+    // Botão PIX no modal principal
     document.getElementById('btnPix').addEventListener('click', function() {
         metodoPagamentoSelecionado = 'pix';
         document.getElementById('btnPix').classList.add('active');
         document.getElementById('btnDinheiro').classList.remove('active');
         document.getElementById('conteudoPix').classList.remove('d-none');
         document.getElementById('conteudoDinheiro').classList.add('d-none');
-        document.getElementById('btnConfirmarPagamento').disabled = false;
+        document.getElementById('btnContinuarPagamento').disabled = false;
+        document.getElementById('btnContinuarPagamento').textContent = 'Continuar com PIX';
     });
     
+    // Botão Dinheiro no modal principal
     document.getElementById('btnDinheiro').addEventListener('click', function() {
         metodoPagamentoSelecionado = 'dinheiro';
         document.getElementById('btnDinheiro').classList.add('active');
         document.getElementById('btnPix').classList.remove('active');
         document.getElementById('conteudoDinheiro').classList.remove('d-none');
         document.getElementById('conteudoPix').classList.add('d-none');
-        document.getElementById('btnConfirmarPagamento').disabled = false;
+        document.getElementById('btnContinuarPagamento').disabled = false;
+        document.getElementById('btnContinuarPagamento').textContent = 'Confirmar Pagamento';
     });
     
-    // Confirmar pagamento no modal principal
-    document.getElementById('btnConfirmarPagamento').addEventListener('click', function() {
+    // Botão Continuar no modal principal
+    document.getElementById('btnContinuarPagamento').addEventListener('click', function() {
         if (metodoPagamentoSelecionado === 'pix') {
-            // Abrir modal PIX específico
-            const modalPagamento = bootstrap.Modal.getInstance(document.getElementById('modalPagamento'));
+            // Fechar modal principal e abrir modal PIX
             modalPagamento.hide();
-            
-            // Gerar e mostrar dados PIX completos
-            gerarPixCompleto();
-            
-            const modalPix = new bootstrap.Modal(document.getElementById('modalPix'));
-            modalPix.show();
+            setTimeout(() => {
+                gerarPixCompleto();
+                modalPix.show();
+            }, 300);
         } else if (metodoPagamentoSelecionado === 'dinheiro') {
             registrarPagamento('dinheiro');
-            
-            // Fechar modal principal
-            const modalPagamento = bootstrap.Modal.getInstance(document.getElementById('modalPagamento'));
             modalPagamento.hide();
         }
     });
+    
+    // Botão Confirmar no modal PIX
+    document.getElementById('btnConfirmarPix').addEventListener('click', function() {
+        registrarPagamento('pix');
+        modalPix.hide();
+    });
+    
+    // Botão Copiar Código PIX
+    document.getElementById('btnCopiarCodigoPix').addEventListener('click', function() {
+        const codigoPix = document.getElementById('codigoPixCompleto');
+        codigoPix.select();
+        codigoPix.setSelectionRange(0, 99999);
+        
+        navigator.clipboard.writeText(codigoPix.value)
+            .then(() => {
+                const btn = document.getElementById('btnCopiarCodigoPix');
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="bi bi-check"></i>';
+                btn.classList.remove('btn-outline-primary');
+                btn.classList.add('btn-success');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-primary');
+                }, 2000);
+            })
+            .catch(err => {
+                console.error('Erro ao copiar:', err);
+                alert('Erro ao copiar código. Selecione e copie manualmente (Ctrl+C).');
+            });
+    });
+    
+    // Resetar modal principal quando fechado
+    document.getElementById('modalPagamento').addEventListener('hidden.bs.modal', function () {
+        metodoPagamentoSelecionado = '';
+        document.getElementById('btnPix').classList.remove('active');
+        document.getElementById('btnDinheiro').classList.remove('active');
+        document.getElementById('conteudoPix').classList.add('d-none');
+        document.getElementById('conteudoDinheiro').classList.add('d-none');
+        document.getElementById('btnContinuarPagamento').disabled = true;
+    });
+    
+    // === FUNÇÕES PIX ===
     
     // Função para gerar PIX completo com QR Code
     function gerarPixCompleto() {
@@ -174,20 +230,24 @@ document.addEventListener('DOMContentLoaded', function() {
         // Criar identificador único
         const identificador = `AluguelJP${primeiroNome}${mes.charAt(0).toUpperCase() + mes.slice(1)}${ano}`;
         
-        // Montar payload PIX completo
-        const payloadPix = gerarPayloadPix(total, identificador);
-        
         // Exibir informações no modal
         document.getElementById('valorPixModal').textContent = total.toFixed(2);
         document.getElementById('identificacaoPix').textContent = identificador;
+        document.getElementById('dataPix').textContent = data.toLocaleDateString('pt-BR');
+        
+        // Gerar payload PIX
+        const payloadPix = gerarPayloadPix(total, identificador);
+        
+        // Exibir código PIX
+        document.getElementById('codigoPixCompleto').value = payloadPix;
         
         // Gerar QR Code
         const qrDiv = document.getElementById('qrcodePix');
-        qrDiv.innerHTML = '';
+        qrDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Gerando QR Code...</span></div>';
         
         QRCode.toCanvas(qrDiv, payloadPix, { 
             width: 200,
-            margin: 1,
+            margin: 2,
             color: {
                 dark: '#000000',
                 light: '#FFFFFF'
@@ -195,84 +255,38 @@ document.addEventListener('DOMContentLoaded', function() {
         }, function(error) {
             if (error) {
                 console.error('Erro ao gerar QR Code:', error);
-                qrDiv.innerHTML = '<div class="alert alert-danger">Erro ao gerar QR Code</div>';
+                qrDiv.innerHTML = '<div class="alert alert-danger p-2">Erro ao gerar QR Code</div>';
+            } else {
+                console.log('QR Code gerado com sucesso!');
             }
-        });
-        
-        // Exibir código PIX completo
-        document.getElementById('codigoPixCompleto').value = payloadPix;
-        
-        // Configurar botão copiar (remover event listeners anteriores)
-        const btnCopiar = document.getElementById('btnCopiarCodigoPix');
-        btnCopiar.replaceWith(btnCopiar.cloneNode(true));
-        
-        document.getElementById('btnCopiarCodigoPix').addEventListener('click', function() {
-            const codigoPix = document.getElementById('codigoPixCompleto');
-            codigoPix.select();
-            codigoPix.setSelectionRange(0, 99999); // Para mobile
-            
-            navigator.clipboard.writeText(codigoPix.value)
-                .then(() => {
-                    // Feedback visual
-                    const btn = document.getElementById('btnCopiarCodigoPix');
-                    const originalText = btn.innerHTML;
-                    btn.innerHTML = '<i class="bi bi-check"></i> Copiado!';
-                    btn.classList.remove('btn-outline-primary');
-                    btn.classList.add('btn-success');
-                    
-                    setTimeout(() => {
-                        btn.innerHTML = originalText;
-                        btn.classList.remove('btn-success');
-                        btn.classList.add('btn-outline-primary');
-                    }, 2000);
-                })
-                .catch(err => {
-                    console.error('Erro ao copiar: ', err);
-                    // Fallback para seleção manual
-                    codigoPix.select();
-                    alert('Código selecionado. Use Ctrl+C para copiar.');
-                });
         });
     }
     
     // Função para gerar o payload PIX no formato correto
     function gerarPayloadPix(valor, identificador) {
-        const valorFormatado = Math.round(valor * 100).toString().padStart(2, '0');
+        const valorCentavos = Math.round(valor * 100);
+        const valorFormatado = valorCentavos.toString().padStart(2, '0');
         
         // Montar o payload seguindo o padrão PIX
-        const payloadParts = [
-            // Payload Format Indicator
+        const payload = [
             "000201",
-            // Point of Initiation Method (12 para QR Code estático)
             "010212",
-            // Merchant Account Information
             "26",
             "25",
             "0014BR.GOV.BCB.PIX",
             `0111${CONFIG_PIX.chave}`,
-            // Merchant Category Code
             "52040000",
-            // Transaction Currency (986 = BRL)
             "5303986",
-            // Transaction Amount
             `54${valorFormatado.length.toString().padStart(2, '0')}${valorFormatado}`,
-            // Country Code
             "5802BR",
-            // Merchant Name
             `59${CONFIG_PIX.nome.length.toString().padStart(2, '0')}${CONFIG_PIX.nome}`,
-            // Merchant City
             `60${CONFIG_PIX.cidade.length.toString().padStart(2, '0')}${CONFIG_PIX.cidade}`,
-            // Additional Data Field
             "62",
-            // Reference Label (identificador)
             `05${identificador.length.toString().padStart(2, '0')}${identificador}`,
-            // Unreserved Templates (opcional)
             "6304"
-        ];
+        ].join('');
         
-        const payload = payloadParts.join('');
         const crc = calcularCRC16(payload);
-        
         return payload + crc;
     }
     
@@ -292,16 +306,8 @@ document.addEventListener('DOMContentLoaded', function() {
         return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
     }
     
-    // Configurar botão de confirmação no modal PIX
-    document.getElementById('btnConfirmarPix').addEventListener('click', function() {
-        registrarPagamento('pix');
-        
-        // Fechar modal PIX
-        const modalPix = bootstrap.Modal.getInstance(document.getElementById('modalPix'));
-        modalPix.hide();
-    });
+    // === FUNÇÃO REGISTRAR PAGAMENTO ===
     
-    // Função para registrar pagamento
     function registrarPagamento(metodo) {
         const data = new Date();
         const mes = data.getMonth() + 1;
@@ -322,26 +328,16 @@ document.addEventListener('DOMContentLoaded', function() {
         
         novoPagamentoRef.set(pagamento)
             .then(() => {
-                let mensagem = 'Pagamento solicitado! Aguarde a confirmação do administrador.';
+                let mensagem = '✅ Pagamento solicitado com sucesso!\n\nAguarde a confirmação do administrador.';
                 if (metodo === 'pix') {
-                    mensagem += '\nNão esqueça de realizar a transferência PIX.';
+                    mensagem += '\n\n💡 Não esqueça de realizar a transferência PIX.';
                 }
                 alert(mensagem);
                 carregarHistoricoPagamentos(uid);
             })
             .catch((error) => {
                 console.error('Erro ao registrar pagamento:', error);
-                alert('Erro ao registrar pagamento. Tente novamente.');
+                alert('❌ Erro ao registrar pagamento. Tente novamente.');
             });
     }
-    
-    // Resetar modal quando fechado
-    document.getElementById('modalPagamento').addEventListener('hidden.bs.modal', function () {
-        metodoPagamentoSelecionado = '';
-        document.getElementById('btnPix').classList.remove('active');
-        document.getElementById('btnDinheiro').classList.remove('active');
-        document.getElementById('conteudoPix').classList.add('d-none');
-        document.getElementById('conteudoDinheiro').classList.add('d-none');
-        document.getElementById('btnConfirmarPagamento').disabled = true;
-    });
 });
