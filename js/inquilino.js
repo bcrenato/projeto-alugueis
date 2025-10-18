@@ -1,4 +1,4 @@
-// inquilino.js - Versão Corrigida com QRCode
+// inquilino.js - Versão Corrigida com Verificação de Dados
 console.log('=== INICIANDO SISTEMA PIX ===');
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -24,9 +24,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const auth = firebase.auth();
     const database = firebase.database();
     
-    let dadosInquilino = {};
+    let dadosInquilino = null;
     let metodoPagamentoSelecionado = '';
     let modalPagamento, modalPix;
+    let dadosCarregados = false;
 
     // Configurações PIX
     const CONFIG_PIX = {
@@ -71,12 +72,14 @@ document.addEventListener('DOMContentLoaded', function() {
         // Abrir modal de pagamento
         document.getElementById('btnAbrirModalPagamento').addEventListener('click', function() {
             console.log('🔄 Abrindo modal de pagamento');
+            if (!verificarDadosCarregados()) return;
             modalPagamento.show();
         });
         
         // Botão PIX no modal principal
         document.getElementById('btnPix').addEventListener('click', function() {
             console.log('🎯 PIX selecionado');
+            if (!verificarDadosCarregados()) return;
             metodoPagamentoSelecionado = 'pix';
             document.getElementById('btnPix').classList.add('active');
             document.getElementById('btnDinheiro').classList.remove('active');
@@ -89,6 +92,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Botão Dinheiro no modal principal
         document.getElementById('btnDinheiro').addEventListener('click', function() {
             console.log('💵 Dinheiro selecionado');
+            if (!verificarDadosCarregados()) return;
             metodoPagamentoSelecionado = 'dinheiro';
             document.getElementById('btnDinheiro').classList.add('active');
             document.getElementById('btnPix').classList.remove('active');
@@ -101,6 +105,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Botão Continuar no modal principal
         document.getElementById('btnContinuarPagamento').addEventListener('click', function() {
             console.log('🔄 Continuando pagamento:', metodoPagamentoSelecionado);
+            
+            if (!verificarDadosCarregados()) return;
             
             if (metodoPagamentoSelecionado === 'pix') {
                 modalPagamento.hide();
@@ -117,6 +123,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Botão Confirmar no modal PIX
         document.getElementById('btnConfirmarPix').addEventListener('click', function() {
             console.log('✅ Confirmando pagamento PIX');
+            if (!verificarDadosCarregados()) return;
             registrarPagamento('pix');
             modalPix.hide();
         });
@@ -166,31 +173,56 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Verificar se os dados foram carregados
+    function verificarDadosCarregados() {
+        if (!dadosCarregados || !dadosInquilino) {
+            console.error('❌ Dados não carregados!');
+            alert('❌ Aguarde os dados carregarem antes de continuar.');
+            return false;
+        }
+        return true;
+    }
+    
     // Carregar dados do inquilino
     function carregarDadosInquilino(uid) {
         console.log('📥 Carregando dados do inquilino:', uid);
+        
+        // Mostrar loading
+        document.getElementById('nomeInquilino').textContent = 'Carregando...';
+        document.getElementById('enderecoInquilino').textContent = 'Carregando...';
+        document.getElementById('valorAluguel').textContent = '0,00';
+        document.getElementById('valorAgua').textContent = '0,00';
+        document.getElementById('valorTotal').textContent = '0,00';
         
         database.ref('inquilinos/' + uid).once('value')
             .then((snapshot) => {
                 if (snapshot.exists()) {
                     dadosInquilino = snapshot.val();
+                    dadosCarregados = true;
                     console.log('✅ Dados carregados:', dadosInquilino);
                     exibirDadosInquilino();
                     carregarHistoricoPagamentos(uid);
                 } else {
                     console.error('❌ Dados do inquilino não encontrados para UID:', uid);
-                    alert('Erro: Seus dados não foram encontrados. Entre em contato com o administrador.');
+                    document.getElementById('nomeInquilino').textContent = 'Erro ao carregar';
+                    alert('❌ Erro: Seus dados não foram encontrados. Entre em contato com o administrador.');
                 }
             })
             .catch((error) => {
                 console.error('❌ Erro ao carregar dados:', error);
-                alert('Erro ao carregar dados. Tente novamente.');
+                document.getElementById('nomeInquilino').textContent = 'Erro ao carregar';
+                alert('❌ Erro ao carregar dados. Tente novamente.');
             });
     }
     
     // Exibir dados do inquilino na interface
     function exibirDadosInquilino() {
         try {
+            if (!dadosInquilino) {
+                console.error('❌ Dados do inquilino não disponíveis para exibição');
+                return;
+            }
+            
             document.getElementById('nomeInquilino').textContent = dadosInquilino.nome || 'Não informado';
             document.getElementById('enderecoInquilino').textContent = `Rua João Pessoa, 2020 - ${formatarCasa(dadosInquilino.casa)}`;
             document.getElementById('valorAluguel').textContent = (dadosInquilino.aluguel || 0).toFixed(2);
@@ -289,9 +321,16 @@ document.addEventListener('DOMContentLoaded', function() {
     function gerarPixCompleto() {
         console.log('🎯 Gerando PIX completo...');
         
-        if (!dadosInquilino || !dadosInquilino.nome) {
+        // Verificação robusta dos dados
+        if (!dadosCarregados || !dadosInquilino) {
             console.error('❌ Dados do inquilino não disponíveis');
-            alert('Erro: Dados não carregados. Recarregue a página.');
+            alert('❌ Erro: Dados não carregados. Aguarde um momento e tente novamente.');
+            return;
+        }
+        
+        if (!dadosInquilino.nome) {
+            console.error('❌ Nome do inquilino não disponível');
+            alert('❌ Erro: Nome do inquilino não encontrado.');
             return;
         }
         
@@ -324,7 +363,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         console.log('🔍 Verificando QRCode antes de gerar:', typeof QRCode);
         
-        // Tentar gerar QR Code com diferentes métodos
+        // Tentar gerar QR Code
         setTimeout(() => {
             gerarQRCode(qrDiv, payloadPix);
         }, 100);
@@ -353,42 +392,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Método 2: Tentar método alternativo
-        if (typeof QRCode !== 'undefined') {
-            console.log('🔄 Tentando método alternativo do QRCode');
-            try {
-                // Algumas versões da biblioteca podem ter APIs diferentes
-                const qr = QRCode(0, 'M');
-                qr.addData(payloadPix);
-                qr.make();
-                
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                const size = 200;
-                canvas.width = size;
-                canvas.height = size;
-                
-                const moduleCount = qr.getModuleCount();
-                const tileSize = size / moduleCount;
-                
-                // Desenhar QR Code manualmente
-                for (let row = 0; row < moduleCount; row++) {
-                    for (let col = 0; col < moduleCount; col++) {
-                        ctx.fillStyle = qr.isDark(row, col) ? '#000000' : '#FFFFFF';
-                        ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
-                    }
-                }
-                
-                qrDiv.innerHTML = '';
-                qrDiv.appendChild(canvas);
-                console.log('✅ QR Code gerado com método alternativo!');
-                return;
-            } catch (error) {
-                console.error('❌ Erro no método alternativo:', error);
-            }
-        }
-        
-        // Método 3: Fallback
+        // Método 2: Fallback
         console.log('⚠️ Usando fallback para QR Code');
         mostrarFallbackQRCode(qrDiv);
     }
@@ -439,6 +443,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function registrarPagamento(metodo) {
         console.log('💾 Registrando pagamento:', metodo);
+        
+        if (!verificarDadosCarregados()) return;
         
         const data = new Date();
         const pagamento = {
