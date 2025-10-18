@@ -166,4 +166,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     carregarInquilinos();
                 })
                 .catch((error) => {
-                    console.error('Er
+                    console.error('Erro ao excluir inquilino:', error);
+                    alert('Erro ao excluir inquilino.');
+                });
+        }
+    };
+    
+    // Carregar dados iniciais
+    carregarInquilinos();
+    carregarPagamentosPendentes();
+});
