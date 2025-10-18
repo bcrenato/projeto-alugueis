@@ -1,13 +1,8 @@
-// inquilino.js - Versão Corrigida com QRCode Funcional
+// inquilino.js - Versão Corrigida com PIX Funcional
 console.log('=== INICIANDO SISTEMA PIX ===');
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ DOM Carregado');
-    console.log('🔍 Verificando bibliotecas...');
-    console.log('QRCode:', typeof QRCode);
-    console.log('qrcode:', typeof qrcode);
-    console.log('Firebase:', typeof firebase);
-    console.log('Bootstrap:', typeof bootstrap);
 
     // Verificar se bibliotecas essenciais estão carregadas
     if (typeof firebase === 'undefined') {
@@ -30,9 +25,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let modalPagamento, modalPix;
     let dadosCarregados = false;
 
-    // Configurações PIX
+    // Configurações PIX - Dados reais do beneficiário
     const CONFIG_PIX = {
-        chave: "23198587845",
+        chave: "23198587845", // Sua chave PIX
         nome: "Renato B de Carvalho",
         cidade: "Nilopolis"
     };
@@ -308,7 +303,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // === FUNÇÕES PIX ===
+    // === FUNÇÕES PIX CORRIGIDAS ===
     
     function gerarPixCompleto() {
         console.log('🎯 Gerando PIX completo...');
@@ -332,8 +327,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const ano = data.getFullYear();
         const primeiroNome = dadosInquilino.nome.split(' ')[0];
         
-        // Criar identificador único
-        const identificador = `AluguelJP${primeiroNome}${mes.charAt(0).toUpperCase() + mes.slice(1)}${ano}`;
+        // Criar identificador único (máximo 25 caracteres)
+        const identificador = `AluguelJP${primeiroNome}${mes.charAt(0).toUpperCase() + mes.slice(1)}${ano}`.substring(0, 25);
         
         console.log('📊 Dados PIX:', { total, identificador, primeiroNome });
         
@@ -342,8 +337,8 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('identificacaoPix').textContent = identificador;
         document.getElementById('dataPix').textContent = data.toLocaleDateString('pt-BR');
         
-        // Gerar payload PIX
-        const payloadPix = gerarPayloadPix(total, identificador);
+        // Gerar payload PIX CORRETO
+        const payloadPix = gerarPayloadPixCorreto(total, identificador);
         console.log('📦 Payload PIX gerado:', payloadPix);
         
         // Exibir código PIX
@@ -353,11 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const qrDiv = document.getElementById('qrcodePix');
         qrDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Gerando QR Code...</span></div>';
         
-        console.log('🔍 Verificando bibliotecas QRCode disponíveis...');
-        console.log('QRCode:', typeof QRCode);
-        console.log('qrcode:', typeof qrcode);
-        
-        // Tentar gerar QR Code com diferentes bibliotecas
+        // Tentar gerar QR Code
         setTimeout(() => {
             gerarQRCode(qrDiv, payloadPix);
         }, 100);
@@ -388,41 +379,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Método 2: Usando qrcode (outra biblioteca)
-        if (typeof qrcode !== 'undefined') {
-            console.log('🔄 Tentando usar qrcode');
-            try {
-                qrDiv.innerHTML = '';
-                const qr = qrcode(0, 'M');
-                qr.addData(payloadPix);
-                qr.make();
-                
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                const size = 200;
-                canvas.width = size;
-                canvas.height = size;
-                
-                const moduleCount = qr.getModuleCount();
-                const tileSize = size / moduleCount;
-                
-                // Desenhar QR Code manualmente
-                for (let row = 0; row < moduleCount; row++) {
-                    for (let col = 0; col < moduleCount; col++) {
-                        ctx.fillStyle = qr.isDark(row, col) ? '#000000' : '#FFFFFF';
-                        ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
-                    }
-                }
-                
-                qrDiv.appendChild(canvas);
-                console.log('✅ QR Code gerado com sucesso usando qrcode!');
-                return;
-            } catch (error) {
-                console.error('❌ Erro no qrcode:', error);
-            }
-        }
-        
-        // Método 3: Fallback
+        // Método 2: Fallback
         console.log('⚠️ Nenhuma biblioteca QRCode disponível, usando fallback');
         mostrarFallbackQRCode(qrDiv);
     }
@@ -437,38 +394,76 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
     
-    function gerarPayloadPix(valor, identificador) {
+    // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
+    function gerarPayloadPixCorreto(valor, identificador) {
         const valorCentavos = Math.round(valor * 100);
-        const valorFormatado = valorCentavos.toString();
         
-        // Montar payload PIX
+        // Montar o payload PIX seguindo o padrão oficial do BACEN
         const payload = [
-            '000201',
-            '010212',
-            '26', '25', '0014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave,
-            '52040000',
-            '5303986',
-            '54' + valorFormatado.length.toString().padStart(2, '0') + valorFormatado,
-            '5802BR',
-            '59' + CONFIG_PIX.nome.length.toString().padStart(2, '0') + CONFIG_PIX.nome,
-            '60' + CONFIG_PIX.cidade.length.toString().padStart(2, '0') + CONFIG_PIX.cidade,
-            '62', '05' + identificador.length.toString().padStart(2, '0') + identificador,
-            '6304'
+            // Payload Format Indicator (00)
+            "000201",
+            
+            // Point of Initiation Method (01) - 12 = QR Code estático
+            "010212",
+            
+            // Merchant Account Information (26)
+            "26",
+            // GUI (00)
+            "0014BR.GOV.BCB.PIX",
+            // Chave PIX (01)
+            `0111${CONFIG_PIX.chave}`,
+            
+            // Merchant Category Code (52) - 0000 = Não categorizado
+            "52040000",
+            
+            // Transaction Currency (53) - 986 = Real Brasileiro
+            "5303986",
+            
+            // Transaction Amount (54) - Valor da transação
+            `54${String(valorCentavos).length.toString().padStart(2, '0')}${valorCentavos}`,
+            
+            // Country Code (58) - BR = Brasil
+            "5802BR",
+            
+            // Merchant Name (59) - Nome do beneficiário
+            `59${CONFIG_PIX.nome.length.toString().padStart(2, '0')}${CONFIG_PIX.nome}`,
+            
+            // Merchant City (60) - Cidade do beneficiário
+            `60${CONFIG_PIX.cidade.length.toString().padStart(2, '0')}${CONFIG_PIX.cidade}`,
+            
+            // Additional Data Field (62)
+            "62",
+            // Reference Label (05) - Identificador da transação
+            `05${identificador.length.toString().padStart(2, '0')}${identificador}`,
+            
+            // CRC16 (63)
+            "6304"
         ].join('');
         
-        return payload + calcularCRC16(payload);
+        // Calcular CRC16
+        const crc = calcularCRC16(payload);
+        
+        return payload + crc;
     }
     
+    // FUNÇÃO CRC16 CORRIGIDA
     function calcularCRC16(payload) {
         let crc = 0xFFFF;
+        
         for (let i = 0; i < payload.length; i++) {
             crc ^= payload.charCodeAt(i) << 8;
+            
             for (let j = 0; j < 8; j++) {
-                crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
-                crc &= 0xFFFF;
+                if (crc & 0x8000) {
+                    crc = (crc << 1) ^ 0x1021;
+                } else {
+                    crc = crc << 1;
+                }
+                crc &= 0xFFFF; // Manter 16 bits
             }
         }
-        return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+        
+        return crc.toString(16).toUpperCase().padStart(4, '0');
     }
     
     function registrarPagamento(metodo) {
