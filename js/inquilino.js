@@ -396,7 +396,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
     // FUNÇÃO COMPLETAMENTE CORRIGIDA - Substitua esta função
-// FUNÇÃO FINAL CORRIGIDA - Use esta no seu arquivo
+// FUNÇÃO COMPLETA E CORRIGIDA - Substitua no seu arquivo
 function gerarPayloadPixCorreto(valor, identificador) {
     const CONFIG_PIX = {
         chave: "02319858784",
@@ -405,8 +405,9 @@ function gerarPayloadPixCorreto(valor, identificador) {
     };
     
     const valorCentavos = Math.round(valor * 100);
+    console.log(`💰 Processando ${valor} -> ${valorCentavos} centavos`);
     
-    // PAYLOAD CORRETO - Versão que funciona
+    // Payload CORRETO - Versão que funciona
     const payload = 
         '000201' + 
         '010212' + 
@@ -424,10 +425,11 @@ function gerarPayloadPixCorreto(valor, identificador) {
         identificador.length.toString().padStart(2, '0') + identificador + 
         '6304';
 
+    // CRC16
     const crc = calcularCRC16(payload);
     const finalPayload = payload + crc;
     
-    console.log('✅ PIX gerado com valor correto:', valorCentavos + ' centavos');
+    console.log('✅ PIX gerado com valor correto');
     
     return finalPayload;
 }
