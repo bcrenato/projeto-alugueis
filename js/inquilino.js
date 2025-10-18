@@ -17,24 +17,30 @@ document.addEventListener('DOMContentLoaded', function() {
     function inicializarModais() {
         modalPagamento = new bootstrap.Modal(document.getElementById('modalPagamento'));
         modalPix = new bootstrap.Modal(document.getElementById('modalPix'));
+        
+        console.log('Modais inicializados');
     }
 
     // Verificar autenticação e carregar dados
     auth.onAuthStateChanged((user) => {
         if (user) {
+            console.log('Usuário autenticado:', user.uid);
             inicializarModais();
             carregarDadosInquilino(user.uid);
         } else {
+            console.log('Usuário não autenticado, redirecionando...');
             window.location.href = 'login.html';
         }
     });
     
     // Carregar dados do inquilino
     function carregarDadosInquilino(uid) {
+        console.log('Carregando dados do inquilino:', uid);
         database.ref('inquilinos/' + uid).once('value')
             .then((snapshot) => {
                 if (snapshot.exists()) {
                     dadosInquilino = snapshot.val();
+                    console.log('Dados carregados:', dadosInquilino);
                     exibirDadosInquilino();
                     carregarHistoricoPagamentos(uid);
                 } else {
@@ -58,6 +64,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const total = dadosInquilino.aluguel + dadosInquilino.agua;
         document.getElementById('valorTotal').textContent = total.toFixed(2);
         document.getElementById('valorPixBasico').textContent = total.toFixed(2);
+        
+        console.log('Dados exibidos na interface');
     }
     
     // Formatar nome da casa para exibição
@@ -135,11 +143,13 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Abrir modal de pagamento
     document.getElementById('btnAbrirModalPagamento').addEventListener('click', function() {
+        console.log('Abrindo modal de pagamento');
         modalPagamento.show();
     });
     
     // Botão PIX no modal principal
     document.getElementById('btnPix').addEventListener('click', function() {
+        console.log('PIX selecionado');
         metodoPagamentoSelecionado = 'pix';
         document.getElementById('btnPix').classList.add('active');
         document.getElementById('btnDinheiro').classList.remove('active');
@@ -151,6 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Botão Dinheiro no modal principal
     document.getElementById('btnDinheiro').addEventListener('click', function() {
+        console.log('Dinheiro selecionado');
         metodoPagamentoSelecionado = 'dinheiro';
         document.getElementById('btnDinheiro').classList.add('active');
         document.getElementById('btnPix').classList.remove('active');
@@ -162,13 +173,20 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Botão Continuar no modal principal
     document.getElementById('btnContinuarPagamento').addEventListener('click', function() {
+        console.log('Continuar pagamento:', metodoPagamentoSelecionado);
+        
         if (metodoPagamentoSelecionado === 'pix') {
             // Fechar modal principal e abrir modal PIX
             modalPagamento.hide();
+            console.log('Modal principal fechado, abrindo modal PIX...');
+            
+            // Pequeno delay para garantir que o modal principal feche
             setTimeout(() => {
                 gerarPixCompleto();
                 modalPix.show();
-            }, 300);
+                console.log('Modal PIX aberto');
+            }, 500);
+            
         } else if (metodoPagamentoSelecionado === 'dinheiro') {
             registrarPagamento('dinheiro');
             modalPagamento.hide();
@@ -177,6 +195,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Botão Confirmar no modal PIX
     document.getElementById('btnConfirmarPix').addEventListener('click', function() {
+        console.log('Confirmando pagamento PIX');
         registrarPagamento('pix');
         modalPix.hide();
     });
@@ -209,6 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Resetar modal principal quando fechado
     document.getElementById('modalPagamento').addEventListener('hidden.bs.modal', function () {
+        console.log('Modal principal fechado, resetando...');
         metodoPagamentoSelecionado = '';
         document.getElementById('btnPix').classList.remove('active');
         document.getElementById('btnDinheiro').classList.remove('active');
@@ -221,6 +241,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Função para gerar PIX completo com QR Code
     function gerarPixCompleto() {
+        console.log('Gerando PIX completo...');
+        
         const total = dadosInquilino.aluguel + dadosInquilino.agua;
         const data = new Date();
         const mes = data.toLocaleString('pt-BR', { month: 'long' });
@@ -230,6 +252,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // Criar identificador único
         const identificador = `AluguelJP${primeiroNome}${mes.charAt(0).toUpperCase() + mes.slice(1)}${ano}`;
         
+        console.log('Dados PIX:', { total, identificador, primeiroNome });
+        
         // Exibir informações no modal
         document.getElementById('valorPixModal').textContent = total.toFixed(2);
         document.getElementById('identificacaoPix').textContent = identificador;
@@ -237,6 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Gerar payload PIX
         const payloadPix = gerarPayloadPix(total, identificador);
+        console.log('Payload PIX gerado:', payloadPix);
         
         // Exibir código PIX
         document.getElementById('codigoPixCompleto').value = payloadPix;
@@ -245,70 +270,126 @@ document.addEventListener('DOMContentLoaded', function() {
         const qrDiv = document.getElementById('qrcodePix');
         qrDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Gerando QR Code...</span></div>';
         
-        QRCode.toCanvas(qrDiv, payloadPix, { 
-            width: 200,
-            margin: 2,
-            color: {
-                dark: '#000000',
-                light: '#FFFFFF'
-            }
-        }, function(error) {
-            if (error) {
-                console.error('Erro ao gerar QR Code:', error);
-                qrDiv.innerHTML = '<div class="alert alert-danger p-2">Erro ao gerar QR Code</div>';
-            } else {
-                console.log('QR Code gerado com sucesso!');
-            }
-        });
+        console.log('Gerando QR Code...');
+        
+        // Usando a biblioteca QRCode corretamente
+        try {
+            QRCode.toCanvas(qrDiv, payloadPix, { 
+                width: 200,
+                margin: 2,
+                color: {
+                    dark: '#000000',
+                    light: '#FFFFFF'
+                }
+            }, function(error) {
+                if (error) {
+                    console.error('Erro ao gerar QR Code:', error);
+                    qrDiv.innerHTML = `
+                        <div class="alert alert-danger p-2 text-center">
+                            <i class="bi bi-exclamation-triangle"></i><br>
+                            Erro ao gerar QR Code<br>
+                            <small>Use o código PIX abaixo</small>
+                        </div>
+                    `;
+                } else {
+                    console.log('QR Code gerado com sucesso!');
+                }
+            });
+        } catch (error) {
+            console.error('Erro na geração do QR Code:', error);
+            qrDiv.innerHTML = `
+                <div class="alert alert-warning p-2 text-center">
+                    <i class="bi bi-info-circle"></i><br>
+                    QR Code indisponível<br>
+                    <small>Use o código PIX abaixo</small>
+                </div>
+            `;
+        }
     }
     
-    // Função para gerar o payload PIX no formato correto
+    // Função para gerar o payload PIX no formato CORRETO
     function gerarPayloadPix(valor, identificador) {
         const valorCentavos = Math.round(valor * 100);
-        const valorFormatado = valorCentavos.toString().padStart(2, '0');
+        const valorFormatado = valorCentavos.toString();
         
-        // Montar o payload seguindo o padrão PIX
-        const payload = [
-            "000201",
-            "010212",
-            "26",
-            "25",
-            "0014BR.GOV.BCB.PIX",
-            `0111${CONFIG_PIX.chave}`,
-            "52040000",
-            "5303986",
-            `54${valorFormatado.length.toString().padStart(2, '0')}${valorFormatado}`,
-            "5802BR",
-            `59${CONFIG_PIX.nome.length.toString().padStart(2, '0')}${CONFIG_PIX.nome}`,
-            `60${CONFIG_PIX.cidade.length.toString().padStart(2, '0')}${CONFIG_PIX.cidade}`,
-            "62",
-            `05${identificador.length.toString().padStart(2, '0')}${identificador}`,
-            "6304"
-        ].join('');
+        console.log('Valor em centavos:', valorCentavos);
+        console.log('Valor formatado:', valorFormatado);
         
+        // Montar o payload PIX CORRETAMENTE
+        const payloadParts = [];
+        
+        // Payload Format Indicator
+        payloadParts.push('000201');
+        
+        // Point of Initiation Method (12 = QR Code estático)
+        payloadParts.push('010212');
+        
+        // Merchant Account Information
+        payloadParts.push('26');
+        let merchantAccount = '0014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave;
+        payloadParts.push(merchantAccount.length.toString().padStart(2, '0') + merchantAccount);
+        
+        // Merchant Category Code
+        payloadParts.push('52040000');
+        
+        // Transaction Currency (986 = BRL)
+        payloadParts.push('5303986');
+        
+        // Transaction Amount
+        let amount = '54' + valorFormatado.length.toString().padStart(2, '0') + valorFormatado;
+        payloadParts.push(amount);
+        
+        // Country Code
+        payloadParts.push('5802BR');
+        
+        // Merchant Name
+        payloadParts.push('59' + CONFIG_PIX.nome.length.toString().padStart(2, '0') + CONFIG_PIX.nome);
+        
+        // Merchant City
+        payloadParts.push('60' + CONFIG_PIX.cidade.length.toString().padStart(2, '0') + CONFIG_PIX.cidade);
+        
+        // Additional Data Field
+        payloadParts.push('62');
+        let additionalData = '05' + identificador.length.toString().padStart(2, '0') + identificador;
+        payloadParts.push(additionalData.length.toString().padStart(2, '0') + additionalData);
+        
+        // CRC16 Placeholder
+        payloadParts.push('6304');
+        
+        const payload = payloadParts.join('');
         const crc = calcularCRC16(payload);
-        return payload + crc;
+        
+        const finalPayload = payload + crc;
+        console.log('Payload final:', finalPayload);
+        
+        return finalPayload;
     }
     
-    // Função CRC16 para PIX
+    // Função CRC16 para PIX - CORRIGIDA
     function calcularCRC16(payload) {
         let crc = 0xFFFF;
+        
         for (let i = 0; i < payload.length; i++) {
             crc ^= payload.charCodeAt(i) << 8;
+            
             for (let j = 0; j < 8; j++) {
                 if (crc & 0x8000) {
                     crc = (crc << 1) ^ 0x1021;
                 } else {
                     crc = crc << 1;
                 }
+                crc &= 0xFFFF; // Manter 16 bits
             }
         }
-        return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
+        
+        return crc.toString(16).toUpperCase().padStart(4, '0');
     }
     
     // === FUNÇÃO REGISTRAR PAGAMENTO ===
     
     function registrarPagamento(metodo) {
+        console.log('Registrando pagamento:', metodo);
+        
         const data = new Date();
         const mes = data.getMonth() + 1;
         const ano = data.getFullYear();
@@ -340,4 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('❌ Erro ao registrar pagamento. Tente novamente.');
             });
     }
+
+    // Debug: Verificar se QRCode está carregado
+    console.log('QRCode library:', typeof QRCode);
 });
