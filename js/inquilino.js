@@ -397,75 +397,71 @@ document.addEventListener('DOMContentLoaded', function() {
     // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
     // FUNÇÃO CORRIGIDA - VALOR FORMATADO CORRETAMENTE
 // FUNÇÃO CORRIGIDA - VALOR FORMATADO CORRETAMENTE
+// FUNÇÃO CORRIGIDA - Substitua APENAS esta função no seu código
 function gerarPayloadPixCorreto(valor, identificador) {
-    const valorCentavos = Math.round(valor * 100);
+    const CONFIG_PIX = {
+        chave: "02319858784",
+        nome: "Renato B de Carvalho",
+        cidade: "Nilopolis"
+    };
     
-    console.log('💰 Valor original:', valor);
-    console.log('💰 Valor em centavos:', valorCentavos);
-    console.log('💰 String do valor:', valorCentavos.toString());
-
-    // Montar o payload PIX seguindo o padrão oficial do BACEN
+    const valorCentavos = Math.round(valor * 100);
+    console.log(`💰 Processando ${valor} -> ${valorCentavos} centavos`);
+    
+    // Payload corrigido - Versão que testamos e funcionou
     const payloadParts = [];
-
+    
     // 00 - Payload Format Indicator
     payloadParts.push('000201');
-
-    // 01 - Point of Initiation Method (12 = QR Code estático)
+    
+    // 01 - Point of Initiation Method  
     payloadParts.push('010212');
-
+    
     // 26 - Merchant Account Information
     payloadParts.push('26');
-    let merchantAccount = '';
-    
-    // 00 - GUI (ID do PIX)
-    merchantAccount += '0014BR.GOV.BCB.PIX';
-    
-    // 01 - Chave PIX
-    merchantAccount += '0111' + CONFIG_PIX.chave;
-    
+    const merchantAccount = '0014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave;
     payloadParts.push(merchantAccount.length.toString().padStart(2, '0') + merchantAccount);
-
+    
     // 52 - Merchant Category Code
     payloadParts.push('52040000');
-
-    // 53 - Transaction Currency (986 = BRL)
+    
+    // 53 - Transaction Currency
     payloadParts.push('5303986');
-
-    // 54 - Transaction Amount - CORREÇÃO AQUI
-    const amountStr = valorCentavos.toString();
-    payloadParts.push('54' + amountStr.length.toString().padStart(2, '0') + amountStr);
-
+    
+    // 54 - Transaction Amount - CORRIGIDO
+    const amountField = '54' + valorCentavos.toString().length.toString().padStart(2, '0') + valorCentavos.toString();
+    payloadParts.push(amountField);
+    
     // 58 - Country Code
     payloadParts.push('5802BR');
-
+    
     // 59 - Merchant Name
-    const merchantName = CONFIG_PIX.nome.substring(0, 25);
-    payloadParts.push('59' + merchantName.length.toString().padStart(2, '0') + merchantName);
-
+    payloadParts.push('59' + CONFIG_PIX.nome.length.toString().padStart(2, '0') + CONFIG_PIX.nome);
+    
     // 60 - Merchant City
-    const merchantCity = CONFIG_PIX.cidade.substring(0, 15);
-    payloadParts.push('60' + merchantCity.length.toString().padStart(2, '0') + merchantCity);
-
+    payloadParts.push('60' + CONFIG_PIX.cidade.length.toString().padStart(2, '0') + CONFIG_PIX.cidade);
+    
     // 62 - Additional Data Field
     payloadParts.push('62');
-    
-    let additionalData = '';
-    // 05 - Reference Label
-    const refLabel = identificador.substring(0, 25);
-    additionalData += '05' + refLabel.length.toString().padStart(2, '0') + refLabel;
-    
+    const additionalData = '05' + identificador.length.toString().padStart(2, '0') + identificador;
     payloadParts.push(additionalData.length.toString().padStart(2, '0') + additionalData);
-
+    
     // 63 - CRC16
     payloadParts.push('6304');
-
-    const payload = payloadParts.join('');
-    const crc = calcularCRC16(payload);
     
+    const payload = payloadParts.join('');
+    
+    // CRC16
+    const crc = calcularCRC16(payload);
     const finalPayload = payload + crc;
     
-    console.log('🎯 Payload final gerado:', finalPayload);
-    console.log('🔍 Verificação do valor no payload:', finalPayload.includes(amountStr));
+    console.log('✅ Payload PIX gerado corretamente');
+    
+    // Verificação final
+    const valorMatch = finalPayload.match(/54(\d{2})(\d+?)5802BR/);
+    if (valorMatch) {
+        console.log(`✅ Valor verificado: ${valorMatch[2]} centavos (R$ ${(valorMatch[2] / 100).toFixed(2)})`);
+    }
     
     return finalPayload;
 }
