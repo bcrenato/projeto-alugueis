@@ -89,146 +89,145 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // === FUNÇÃO: Carregar pagamentos efetuados ===
-    // === FUNÇÃO CORRIGIDA: Carregar pagamentos efetuados ===
-function carregarPagamentosEfetuados() {
-    const tabela = document.getElementById('tabelaEfetuados');
-    if (!tabela) return;
-    
-    tabela.innerHTML = '<tr><td colspan="7" class="text-center">Carregando...</td></tr>';
-    
-    const filtroMes = document.getElementById('filtroMes') ? document.getElementById('filtroMes').value : '';
-    const filtroAno = document.getElementById('filtroAno') ? document.getElementById('filtroAno').value : '';
-    
-    console.log('🔍 Filtros aplicados:', { mes: filtroMes, ano: filtroAno });
-    
-    database.ref('pagamentos').once('value')
-        .then((snapshot) => {
-            if (!snapshot.exists()) {
-                tabela.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum pagamento encontrado</td></tr>';
-                return;
-            }
-
-            const pagamentosEfetuados = [];
-            const promises = [];
-
-            snapshot.forEach((childSnapshotUid) => {
-                const uid = childSnapshotUid.key;
-                
-                childSnapshotUid.forEach((childSnapshotPagamento) => {
-                    const pagamento = childSnapshotPagamento.val();
-                    const idPagamento = childSnapshotPagamento.key;
-                    
-                    // DEBUG: Mostrar todos os pagamentos
-                    console.log('📄 Pagamento encontrado:', {
-                        uid: uid,
-                        id: idPagamento,
-                        mes: pagamento.mes,
-                        ano: pagamento.ano,
-                        status: pagamento.status,
-                        valor: pagamento.valor
-                    });
-
-                    // Verificar se é um pagamento efetuado
-                    if (pagamento.status === 'pago' || pagamento.status === 'aprovado') {
-                        // Aplicar filtros
-                        let deveIncluir = true;
-                        
-                        if (filtroMes && pagamento.mes != filtroMes) {
-                            deveIncluir = false;
-                            console.log('❌ Filtrado por mês:', pagamento.mes, '!=', filtroMes);
-                        }
-                        
-                        if (filtroAno && pagamento.ano != filtroAno) {
-                            deveIncluir = false;
-                            console.log('❌ Filtrado por ano:', pagamento.ano, '!=', filtroAno);
-                        }
-                        
-                        if (deveIncluir) {
-                            console.log('✅ Incluindo pagamento:', pagamento.mes + '/' + pagamento.ano);
-                            pagamentosEfetuados.push({
-                                uid: uid,
-                                idPagamento: idPagamento,
-                                pagamento: pagamento
-                            });
-                        }
-                    }
-                });
-            });
-
-            console.log('📊 Total de pagamentos após filtro:', pagamentosEfetuados.length);
-
-            if (pagamentosEfetuados.length === 0) {
-                let mensagem = 'Nenhum pagamento efetuado encontrado';
-                if (filtroMes || filtroAno) {
-                    mensagem += ' com os filtros atuais';
+    function carregarPagamentosEfetuados() {
+        const tabela = document.getElementById('tabelaEfetuados');
+        if (!tabela) return;
+        
+        tabela.innerHTML = '<tr><td colspan="7" class="text-center">Carregando...</td></tr>';
+        
+        const filtroMes = document.getElementById('filtroMes') ? document.getElementById('filtroMes').value : '';
+        const filtroAno = document.getElementById('filtroAno') ? document.getElementById('filtroAno').value : '';
+        
+        console.log('🔍 Filtros aplicados:', { mes: filtroMes, ano: filtroAno });
+        
+        database.ref('pagamentos').once('value')
+            .then((snapshot) => {
+                if (!snapshot.exists()) {
+                    tabela.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum pagamento encontrado</td></tr>';
+                    return;
                 }
-                tabela.innerHTML = `<tr><td colspan="7" class="text-center">${mensagem}</td></tr>`;
-                return;
-            }
 
-            // Ordenar por data (mais recente primeiro)
-            pagamentosEfetuados.sort((a, b) => {
-                const dataA = new Date(a.pagamento.dataPagamento || a.pagamento.dataSolicitacao || 0);
-                const dataB = new Date(b.pagamento.dataPagamento || b.pagamento.dataSolicitacao || 0);
-                return dataB - dataA;
-            });
+                const pagamentosEfetuados = [];
+                const promises = [];
 
-            // Limpar tabela
-            tabela.innerHTML = '';
-
-            // Processar cada pagamento
-            pagamentosEfetuados.forEach((item) => {
-                const promise = database.ref('inquilinos/' + item.uid).once('value')
-                    .then((snapshotInquilino) => {
-                        let nomeInquilino = 'Inquilino não encontrado';
-                        let casaInquilino = 'N/A';
+                snapshot.forEach((childSnapshotUid) => {
+                    const uid = childSnapshotUid.key;
+                    
+                    childSnapshotUid.forEach((childSnapshotPagamento) => {
+                        const pagamento = childSnapshotPagamento.val();
+                        const idPagamento = childSnapshotPagamento.key;
                         
-                        if (snapshotInquilino.exists()) {
-                            const inquilino = snapshotInquilino.val();
-                            nomeInquilino = inquilino.nome;
-                            casaInquilino = inquilino.casa;
+                        // DEBUG: Mostrar todos os pagamentos
+                        console.log('📄 Pagamento encontrado:', {
+                            uid: uid,
+                            id: idPagamento,
+                            mes: pagamento.mes,
+                            ano: pagamento.ano,
+                            status: pagamento.status,
+                            valor: pagamento.valor
+                        });
+
+                        // Verificar se é um pagamento efetuado
+                        if (pagamento.status === 'pago' || pagamento.status === 'aprovado') {
+                            // Aplicar filtros
+                            let deveIncluir = true;
+                            
+                            if (filtroMes && pagamento.mes != filtroMes) {
+                                deveIncluir = false;
+                                console.log('❌ Filtrado por mês:', pagamento.mes, '!=', filtroMes);
+                            }
+                            
+                            if (filtroAno && pagamento.ano != filtroAno) {
+                                deveIncluir = false;
+                                console.log('❌ Filtrado por ano:', pagamento.ano, '!=', filtroAno);
+                            }
+                            
+                            if (deveIncluir) {
+                                console.log('✅ Incluindo pagamento:', pagamento.mes + '/' + pagamento.ano);
+                                pagamentosEfetuados.push({
+                                    uid: uid,
+                                    idPagamento: idPagamento,
+                                    pagamento: pagamento
+                                });
+                            }
                         }
-
-                        const linha = document.createElement('tr');
-                        linha.innerHTML = `
-                            <td>${nomeInquilino}</td>
-                            <td>${casaInquilino}</td>
-                            <td>${item.pagamento.mes}/${item.pagamento.ano}</td>
-                            <td>R$ ${item.pagamento.valor ? parseFloat(item.pagamento.valor).toFixed(2) : '0.00'}</td>
-                            <td>${item.pagamento.metodo || 'N/A'}</td>
-                            <td>${formatarData(item.pagamento.dataPagamento)}</td>
-                            <td><span class="badge bg-success">${item.pagamento.status}</span></td>
-                        `;
-                        
-                        tabela.appendChild(linha);
-                    })
-                    .catch((error) => {
-                        console.error('Erro ao buscar inquilino:', error);
-                        
-                        // Mesmo com erro, mostra o pagamento
-                        const linha = document.createElement('tr');
-                        linha.innerHTML = `
-                            <td>Erro ao carregar</td>
-                            <td>N/A</td>
-                            <td>${item.pagamento.mes}/${item.pagamento.ano}</td>
-                            <td>R$ ${item.pagamento.valor ? parseFloat(item.pagamento.valor).toFixed(2) : '0.00'}</td>
-                            <td>${item.pagamento.metodo || 'N/A'}</td>
-                            <td>${formatarData(item.pagamento.dataPagamento)}</td>
-                            <td><span class="badge bg-success">${item.pagamento.status}</span></td>
-                        `;
-                        tabela.appendChild(linha);
                     });
-                
-                promises.push(promise);
-            });
+                });
 
-            return Promise.all(promises);
-        })
-        .catch((error) => {
-            console.error('❌ Erro ao carregar pagamentos:', error);
-            tabela.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar pagamentos</td></tr>';
-        });
-}
+                console.log('📊 Total de pagamentos após filtro:', pagamentosEfetuados.length);
+
+                if (pagamentosEfetuados.length === 0) {
+                    let mensagem = 'Nenhum pagamento efetuado encontrado';
+                    if (filtroMes || filtroAno) {
+                        mensagem += ' com os filtros atuais';
+                    }
+                    tabela.innerHTML = `<tr><td colspan="7" class="text-center">${mensagem}</td></tr>`;
+                    return;
+                }
+
+                // Ordenar por data (mais recente primeiro)
+                pagamentosEfetuados.sort((a, b) => {
+                    const dataA = new Date(a.pagamento.dataPagamento || a.pagamento.dataSolicitacao || 0);
+                    const dataB = new Date(b.pagamento.dataPagamento || b.pagamento.dataSolicitacao || 0);
+                    return dataB - dataA;
+                });
+
+                // Limpar tabela
+                tabela.innerHTML = '';
+
+                // Processar cada pagamento
+                pagamentosEfetuados.forEach((item) => {
+                    const promise = database.ref('inquilinos/' + item.uid).once('value')
+                        .then((snapshotInquilino) => {
+                            let nomeInquilino = 'Inquilino não encontrado';
+                            let casaInquilino = 'N/A';
+                            
+                            if (snapshotInquilino.exists()) {
+                                const inquilino = snapshotInquilino.val();
+                                nomeInquilino = inquilino.nome;
+                                casaInquilino = inquilino.casa;
+                            }
+
+                            const linha = document.createElement('tr');
+                            linha.innerHTML = `
+                                <td>${nomeInquilino}</td>
+                                <td>${casaInquilino}</td>
+                                <td>${item.pagamento.mes}/${item.pagamento.ano}</td>
+                                <td>R$ ${item.pagamento.valor ? parseFloat(item.pagamento.valor).toFixed(2) : '0.00'}</td>
+                                <td>${item.pagamento.metodo || 'N/A'}</td>
+                                <td>${formatarData(item.pagamento.dataPagamento)}</td>
+                                <td><span class="badge bg-success">${item.pagamento.status}</span></td>
+                            `;
+                            
+                            tabela.appendChild(linha);
+                        })
+                        .catch((error) => {
+                            console.error('Erro ao buscar inquilino:', error);
+                            
+                            // Mesmo com erro, mostra o pagamento
+                            const linha = document.createElement('tr');
+                            linha.innerHTML = `
+                                <td>Erro ao carregar</td>
+                                <td>N/A</td>
+                                <td>${item.pagamento.mes}/${item.pagamento.ano}</td>
+                                <td>R$ ${item.pagamento.valor ? parseFloat(item.pagamento.valor).toFixed(2) : '0.00'}</td>
+                                <td>${item.pagamento.metodo || 'N/A'}</td>
+                                <td>${formatarData(item.pagamento.dataPagamento)}</td>
+                                <td><span class="badge bg-success">${item.pagamento.status}</span></td>
+                            `;
+                            tabela.appendChild(linha);
+                        });
+                    
+                    promises.push(promise);
+                });
+
+                return Promise.all(promises);
+            })
+            .catch((error) => {
+                console.error('❌ Erro ao carregar pagamentos:', error);
+                tabela.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar pagamentos</td></tr>';
+            });
+    }
 
     // === FUNÇÃO: Formatar data ===
     function formatarData(dataString) {
@@ -239,6 +238,117 @@ function carregarPagamentosEfetuados() {
         } catch (error) {
             return dataString;
         }
+    }
+    
+    // === FUNÇÃO: Detectar e carregar anos existentes nos pagamentos ===
+    function carregarAnosDisponiveis() {
+        const selectAno = document.getElementById('filtroAno');
+        if (!selectAno) {
+            console.log('❌ Select de ano não encontrado');
+            return;
+        }
+        
+        console.log('📅 Buscando anos disponíveis nos pagamentos...');
+        
+        database.ref('pagamentos').once('value')
+            .then((snapshot) => {
+                if (!snapshot.exists()) {
+                    console.log('ℹ️ Nenhum pagamento encontrado para extrair anos');
+                    // Adicionar anos padrão como fallback
+                    adicionarAnosPadrao(selectAno);
+                    return;
+                }
+                
+                const anosUnicos = new Set();
+                const anoAtual = new Date().getFullYear();
+                
+                console.log('🔍 Analisando estrutura de pagamentos...');
+                
+                // Coletar todos os anos existentes nos pagamentos
+                snapshot.forEach((childSnapshotUid) => {
+                    childSnapshotUid.forEach((childSnapshotPagamento) => {
+                        const pagamento = childSnapshotPagamento.val();
+                        if (pagamento.ano && pagamento.ano.toString().trim() !== '') {
+                            const ano = pagamento.ano.toString();
+                            anosUnicos.add(ano);
+                            console.log(`✅ Ano encontrado: ${ano}`);
+                        }
+                    });
+                });
+                
+                // Adicionar ano atual se não existir
+                if (!anosUnicos.has(anoAtual.toString())) {
+                    anosUnicos.add(anoAtual.toString());
+                    console.log(`✅ Ano atual adicionado: ${anoAtual}`);
+                }
+                
+                // Adicionar alguns anos anteriores como fallback se estiver vazio
+                if (anosUnicos.size === 0) {
+                    console.log('ℹ️ Nenhum ano encontrado, usando anos padrão');
+                    adicionarAnosPadrao(selectAno);
+                    return;
+                }
+                
+                // Converter para array e ordenar do mais recente para o mais antigo
+                const anosArray = Array.from(anosUnicos).sort((a, b) => b - a);
+                
+                console.log('📊 Anos ordenados:', anosArray);
+                
+                // Limpar e reconstruir o select (mantendo a opção "Todos os anos")
+                const opcaoTodos = selectAno.options[0];
+                selectAno.innerHTML = '';
+                selectAno.appendChild(opcaoTodos);
+                
+                // Adicionar cada ano ao select
+                anosArray.forEach(ano => {
+                    const option = document.createElement('option');
+                    option.value = ano;
+                    option.textContent = ano;
+                    selectAno.appendChild(option);
+                });
+                
+                console.log(`✅ Select de anos atualizado com ${anosArray.length} anos`);
+                
+            })
+            .catch((error) => {
+                console.error('❌ Erro ao carregar anos disponíveis:', error);
+                // Em caso de erro, usar anos padrão
+                const selectAno = document.getElementById('filtroAno');
+                if (selectAno) {
+                    adicionarAnosPadrao(selectAno);
+                }
+            });
+    }
+
+    // === FUNÇÃO: Adicionar anos padrão como fallback ===
+    function adicionarAnosPadrao(selectElement) {
+        const anoAtual = new Date().getFullYear();
+        const anosPadrao = [];
+        
+        // Adicionar dos últimos 3 anos aos próximos 2 anos
+        for (let i = 3; i >= 0; i--) {
+            anosPadrao.push(anoAtual - i);
+        }
+        for (let i = 1; i <= 2; i++) {
+            anosPadrao.push(anoAtual + i);
+        }
+        
+        // Ordenar do mais recente para o mais antigo
+        anosPadrao.sort((a, b) => b - a);
+        
+        // Limpar e adicionar opções
+        const opcaoTodos = selectElement.options[0];
+        selectElement.innerHTML = '';
+        selectElement.appendChild(opcaoTodos);
+        
+        anosPadrao.forEach(ano => {
+            const option = document.createElement('option');
+            option.value = ano;
+            option.textContent = ano;
+            selectElement.appendChild(option);
+        });
+        
+        console.log('✅ Anos padrão carregados:', anosPadrao);
     }
     
     // === FUNÇÃO: Abrir modal de edição ===
@@ -451,6 +561,11 @@ function carregarPagamentosEfetuados() {
             carregarPagamentosEfetuados();
         }
     });
+    
+    // === CARREGAMENTO INICIAL ===
+    
+    // Carregar anos disponíveis automaticamente
+    carregarAnosDisponiveis();
     
     // Carregar dados iniciais
     carregarInquilinos();
