@@ -401,7 +401,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
     // FUNÇÃO SUPER SIMPLIFICADA QUE FUNCIONA
-function gerarPayloadPixCorreto(valor, nomeInquilino) {
+function gerarPayloadPixCorreto(valor, nomeInquilino, mesReferencia, anoReferencia) {
     const CONFIG_PIX = {
         chave: "02319858784",
         nome: "Renato B de Carvalho",
@@ -411,17 +411,13 @@ function gerarPayloadPixCorreto(valor, nomeInquilino) {
     // === Formatar o valor ===
     const valorFormatado = valor.toFixed(2);
 
-    // === Data atual ===
-    const data = new Date();
-    const meses = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
-    const mesAbrev = meses[data.getMonth()];
-    const ano2 = data.getFullYear().toString().slice(-2);
-
-    // === Gerar TXID automático ===
-    const nomeFormatado = nomeInquilino.trim().split(" ")[0].toUpperCase();
+    // === Geração automática do TXID ===
+    const nomeFormatado = nomeInquilino.trim().split(" ")[0].toUpperCase(); // primeiro nome
+    const mesAbrev = mesReferencia.substring(0, 3).toUpperCase(); // Ex: OUT de Outubro
+    const ano2 = anoReferencia.toString().slice(-2); // últimos 2 dígitos do ano
     const txid = `ALUGUEL_${nomeFormatado}_${mesAbrev}${ano2}`.substring(0, 25);
 
-    // === Montar payload PIX ===
+    // === Montagem do payload PIX ===
     const payload =
         '000201' +
         '010212' +
@@ -434,17 +430,18 @@ function gerarPayloadPixCorreto(valor, nomeInquilino) {
         '59' + String(CONFIG_PIX.nome.length).padStart(2, '0') + CONFIG_PIX.nome +
         '60' + String(CONFIG_PIX.cidade.length).padStart(2, '0') + CONFIG_PIX.cidade;
 
-    // === Adicionar TXID ===
+    // === Adiciona o TXID ===
     const campoAdicional = '05' + String(txid.length).padStart(2, '0') + txid;
     const campo62 = '62' + String(campoAdicional.length).padStart(2, '0') + campoAdicional;
 
-    // === Completar com CRC ===
+    // === Monta tudo antes do CRC ===
     const payloadCompleto = payload + campo62 + '6304';
     const crc = calcularCRC16(payloadCompleto);
 
     console.log('✅ TXID Gerado:', txid);
     return payloadCompleto + crc;
 }
+
 
 
 
