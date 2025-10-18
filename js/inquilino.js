@@ -401,32 +401,54 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
     // FUNÇÃO SUPER SIMPLIFICADA QUE FUNCIONA
+// FUNÇÃO CORRIGIDA - CAMPO DO VALOR FORMATADO CORRETAMENTE
 function gerarPayloadPixCorreto(valor, identificador) {
     const CONFIG_PIX = {
-        chave: "02319858784",
+        chave: "02319858784", 
         nome: "Renato B de Carvalho",
         cidade: "Nilopolis"
     };
     
     const valorCentavos = Math.round(valor * 100);
+    const valorStr = valorCentavos.toString();
     
-    // Payload MUITO SIMPLES - formato básico que funciona
+    console.log('🔢 DEBUG VALOR:');
+    console.log('- Valor:', valor);
+    console.log('- Centavos:', valorCentavos);
+    console.log('- String:', valorStr);
+    console.log('- Tamanho:', valorStr.length);
+    
+    // CORREÇÃO: Campos separados corretamente
     const payload = 
-        '000201' + // Início
-        '010212' + // QR estático
-        '26330014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave + // Chave PIX
-        '52040000' + // Categoria
-        '5303986' + // Moeda BRL
-        '54' + String(valorCentavos).length.toString().padStart(2, '0') + valorCentavos + // Valor
-        '5802BR' + // País
-        '59' + String(CONFIG_PIX.nome.length).padStart(2, '0') + CONFIG_PIX.nome + // Nome
-        '60' + String(CONFIG_PIX.cidade.length).padStart(2, '0') + CONFIG_PIX.cidade + // Cidade
-        '6207' + // Campo adicional (fixo 7 caracteres)
-        '0503***' + // Identificador simples
-        '6304'; // Fim
-    
+        '000201' + 
+        '010212' + 
+        '26' + 
+        '25' + 
+        '0014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave + 
+        '52040000' + 
+        '5303986' + 
+        '54' + valorStr.length.toString().padStart(2, '0') + valorStr + // ← AQUI ESTÁ CORRETO
+        '5802BR' + 
+        '59' + CONFIG_PIX.nome.length.toString().padStart(2, '0') + CONFIG_PIX.nome + 
+        '60' + CONFIG_PIX.cidade.length.toString().padStart(2, '0') + CONFIG_PIX.cidade + 
+        '62' + 
+        '05' + 
+        '03***' + // Identificador fixo curto
+        '6304';
+
     const crc = calcularCRC16(payload);
-    return payload + crc;
+    const finalPayload = payload + crc;
+    
+    // VERIFICAÇÃO FINAL
+    console.log('🎯 VERIFICAÇÃO:');
+    const match = finalPayload.match(/54(\d{2})(\d+)5802BR/);
+    if (match) {
+        console.log('✅ Campo valor: 54' + match[1] + match[2]);
+        console.log('✅ Tamanho:', match[1], 'Valor:', match[2]);
+        console.log('✅ Equivale a: R$', (parseInt(match[2]) / 100).toFixed(2));
+    }
+    
+    return finalPayload;
 }
 
     // FUNÇÃO CRC16 CORRIGIDA E TESTADA
