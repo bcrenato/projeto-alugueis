@@ -182,7 +182,19 @@
             </div>
         </div>
     </div>
-
+<!-- SOLUÇÃO ALTERNATIVA - Coloque no HEAD -->
+<script>
+// Forçar carregamento do QRCode se necessário
+if (typeof QRCode === 'undefined') {
+    console.log('🔄 Carregando QRCode manualmente...');
+    var script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+    script.onload = function() {
+        console.log('✅ QRCode carregado com sucesso!');
+    };
+    document.head.appendChild(script);
+}
+</script>
     <!-- SCRIPTS NA ORDEM CORRETA -->
     <!-- 1. Primeiro as bibliotecas externas -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
