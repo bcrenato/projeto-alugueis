@@ -412,10 +412,10 @@ function gerarPayloadPixCorreto(valor, nomeInquilino, mesReferencia, anoReferenc
     const valorFormatado = valor.toFixed(2);
 
     // === Geração automática do TXID ===
-    const nomeFormatado = nomeInquilino.trim().split(" ")[0].toUpperCase(); // primeiro nome
+    const nomeFormatado = nomeInquilino.trim().split(" ")[0].toUpperCase(); // pega o primeiro nome
     const mesAbrev = mesReferencia.substring(0, 3).toUpperCase(); // Ex: OUT de Outubro
     const ano2 = anoReferencia.toString().slice(-2); // últimos 2 dígitos do ano
-    const txid = `ALUGUEL_${nomeFormatado}_${mesAbrev}${ano2}`.substring(0, 25);
+    const txid = `ALUG_${nomeFormatado}_${mesAbrev}${ano2}`.substring(0, 25);
 
     // === Montagem do payload PIX ===
     const payload =
@@ -441,6 +441,7 @@ function gerarPayloadPixCorreto(valor, nomeInquilino, mesReferencia, anoReferenc
     console.log('✅ TXID Gerado:', txid);
     return payloadCompleto + crc;
 }
+
 
 
 
