@@ -396,6 +396,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
     // FUNÇÃO COMPLETAMENTE CORRIGIDA - Substitua esta função
+// VERSÃO ALTERNATIVA - MAIS SIMPLES
 function gerarPayloadPixCorreto(valor, identificador) {
     const CONFIG_PIX = {
         chave: "02319858784",
@@ -404,33 +405,41 @@ function gerarPayloadPixCorreto(valor, identificador) {
     };
     
     const valorCentavos = Math.round(valor * 100);
-    console.log(`💰 Processando ${valor} -> ${valorCentavos} centavos`);
+    const valorStr = valorCentavos.toString();
     
-    // VERSÃO QUE FUNCIONOU NO TESTE - Payload direto
-    const payload = 
-        '000201' + 
-        '010212' + 
-        '26' + 
-        '25' + 
-        '0014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave + 
-        '52040000' + 
-        '5303986' + 
-        '54' + valorCentavos.toString().length.toString().padStart(2, '0') + valorCentavos.toString() + 
-        '5802BR' + 
-        '59' + CONFIG_PIX.nome.length.toString().padStart(2, '0') + CONFIG_PIX.nome + 
-        '60' + CONFIG_PIX.cidade.length.toString().padStart(2, '0') + CONFIG_PIX.cidade + 
-        '62' + 
-        '05' + 
-        identificador.length.toString().padStart(2, '0') + identificador + 
-        '6304';
-
+    console.log('🔢 DEBUG VALOR:');
+    console.log('- Original:', valor);
+    console.log('- Centavos:', valorCentavos);
+    console.log('- String:', valorStr);
+    console.log('- Tamanho:', valorStr.length);
+    
+    // Payload manual - exatamente como testamos
+    const payload = [
+        '000201',
+        '010212', 
+        '26', '25', '0014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave,
+        '52040000',
+        '5303986',
+        '54' + valorStr.length.toString().padStart(2, '0') + valorStr,
+        '5802BR',
+        '59' + CONFIG_PIX.nome.length.toString().padStart(2, '0') + CONFIG_PIX.nome,
+        '60' + CONFIG_PIX.cidade.length.toString().padStart(2, '0') + CONFIG_PIX.cidade,
+        '62', '05' + identificador.length.toString().padStart(2, '0') + identificador,
+        '6304'
+    ].join('');
+    
     const crc = calcularCRC16(payload);
     const finalPayload = payload + crc;
     
-    console.log('✅✅✅ PAYLOAD CORRETO GERADO!');
-    console.log('🔍 Verificação do valor:');
-    console.log('- Valor em centavos:', valorCentavos);
-    console.log('- No payload:', finalPayload.match(/54\d{2}(\d+)/)?.[1] || 'não encontrado');
+    // VERIFICAÇÃO FINAL
+    console.log('🎯 VERIFICAÇÃO FINAL:');
+    const match = finalPayload.match(/54(\d{2})(\d+)5802BR/);
+    if (match) {
+        console.log('✅ SUCESSO! Valor correto:', match[2], 'centavos');
+        console.log('✅ Equivale a: R$', (parseInt(match[2]) / 100).toFixed(2));
+    } else {
+        console.log('❌ ERRO: Valor não encontrado no payload');
+    }
     
     return finalPayload;
 }
