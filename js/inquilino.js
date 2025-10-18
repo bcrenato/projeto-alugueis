@@ -402,32 +402,47 @@ document.addEventListener('DOMContentLoaded', function() {
     // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
     // FUNÇÃO SUPER SIMPLIFICADA QUE FUNCIONA
 function gerarPayloadPixCorreto(valor, identificador) {
+    // Configurações PIX fixas
     const CONFIG_PIX = {
-        chave: "02319858784",
+        chave: "02319858784", // sua chave PIX
         nome: "Renato B de Carvalho",
         cidade: "Nilopolis"
     };
-    
-    // valor precisa ter ponto decimal com 2 casas
+
+    // Valor formatado (ex: 850.00)
     const valorFormatado = valor.toFixed(2);
 
-    const payload = 
-        '000201' + // Início
-        '010212' + // QR estático
-        '26330014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave + // Chave PIX
-        '52040000' + // Categoria
-        '5303986' + // Moeda BRL
-        '54' + String(valorFormatado.length).padStart(2, '0') + valorFormatado + // ✅ Valor correto
-        '5802BR' + // País
-        '59' + String(CONFIG_PIX.nome.length).padStart(2, '0') + CONFIG_PIX.nome + // Nome
-        '60' + String(CONFIG_PIX.cidade.length).padStart(2, '0') + CONFIG_PIX.cidade + // Cidade
-        '6207' + // Campo adicional
-        '0503***' + // Identificador simples
-        '6304'; // Fim
+    // Garante que o TXID (identificador) tenha no máximo 25 caracteres
+    const txid = (identificador || "SEMID")
+        .replace(/[^A-Z0-9]/gi, '') // remove caracteres inválidos
+        .substring(0, 25);
 
-    const crc = calcularCRC16(payload);
-    return payload + crc;
+    // === Montagem dos campos ===
+    const payload =
+        '000201' +                 // Início
+        '010212' +                 // QR estático
+        '26330014BR.GOV.BCB.PIX' + // Domínio oficial do BACEN
+        '0111' + CONFIG_PIX.chave + // 01 = chave, 11 = tamanho, valor = chave
+        '52040000' +               // Categoria
+        '5303986' +                // Moeda BRL
+        '54' + String(valorFormatado.length).padStart(2, '0') + valorFormatado + // Valor
+        '5802BR' +                 // País
+        '59' + String(CONFIG_PIX.nome.length).padStart(2, '0') + CONFIG_PIX.nome + // Nome recebedor
+        '60' + String(CONFIG_PIX.cidade.length).padStart(2, '0') + CONFIG_PIX.cidade; // Cidade
+
+    // === Campo adicional (TXID dinâmico) ===
+    const campoAdicional = '05' + String(txid.length).padStart(2, '0') + txid;
+    const campo62 = '62' + String(campoAdicional.length).padStart(2, '0') + campoAdicional;
+
+    // === Montar payload completo antes do CRC ===
+    const payloadCompleto = payload + campo62 + '6304';
+
+    // === Calcular CRC16 ===
+    const crc = calcularCRC16(payloadCompleto);
+
+    return payloadCompleto + crc;
 }
+
 
 
     // FUNÇÃO CRC16 CORRIGIDA E TESTADA
