@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Configurações PIX - Dados reais do beneficiário
     const CONFIG_PIX = {
-        chave: "023198587845", // Sua chave PIX
+        chave: "02319858784", // Sua chave PIX
         nome: "Renato B de Carvalho",
         cidade: "Nilopolis"
     };
