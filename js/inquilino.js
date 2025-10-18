@@ -401,47 +401,51 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
     // FUNÇÃO SUPER SIMPLIFICADA QUE FUNCIONA
-function gerarPayloadPixCorreto(valor, identificador) {
-    // Configurações PIX fixas
+function gerarPayloadPixCorreto(valor, nomeInquilino) {
     const CONFIG_PIX = {
-        chave: "02319858784", // sua chave PIX
+        chave: "02319858784",
         nome: "Renato B de Carvalho",
         cidade: "Nilopolis"
     };
 
-    // Valor formatado (ex: 850.00)
+    // === Formatar o valor ===
     const valorFormatado = valor.toFixed(2);
 
-    // Garante que o TXID (identificador) tenha no máximo 25 caracteres
-    const txid = (identificador || "SEMID")
-        .replace(/[^A-Z0-9]/gi, '') // remove caracteres inválidos
-        .substring(0, 25);
+    // === Data atual ===
+    const data = new Date();
+    const meses = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+    const mesAbrev = meses[data.getMonth()];
+    const ano2 = data.getFullYear().toString().slice(-2);
 
-    // === Montagem dos campos ===
+    // === Gerar TXID automático ===
+    const nomeFormatado = nomeInquilino.trim().split(" ")[0].toUpperCase();
+    const txid = `ALUGUEL_${nomeFormatado}_${mesAbrev}${ano2}`.substring(0, 25);
+
+    // === Montar payload PIX ===
     const payload =
-        '000201' +                 // Início
-        '010212' +                 // QR estático
-        '26330014BR.GOV.BCB.PIX' + // Domínio oficial do BACEN
-        '0111' + CONFIG_PIX.chave + // 01 = chave, 11 = tamanho, valor = chave
-        '52040000' +               // Categoria
-        '5303986' +                // Moeda BRL
-        '54' + String(valorFormatado.length).padStart(2, '0') + valorFormatado + // Valor
-        '5802BR' +                 // País
-        '59' + String(CONFIG_PIX.nome.length).padStart(2, '0') + CONFIG_PIX.nome + // Nome recebedor
-        '60' + String(CONFIG_PIX.cidade.length).padStart(2, '0') + CONFIG_PIX.cidade; // Cidade
+        '000201' +
+        '010212' +
+        '26330014BR.GOV.BCB.PIX' +
+        '0111' + CONFIG_PIX.chave +
+        '52040000' +
+        '5303986' +
+        '54' + String(valorFormatado.length).padStart(2, '0') + valorFormatado +
+        '5802BR' +
+        '59' + String(CONFIG_PIX.nome.length).padStart(2, '0') + CONFIG_PIX.nome +
+        '60' + String(CONFIG_PIX.cidade.length).padStart(2, '0') + CONFIG_PIX.cidade;
 
-    // === Campo adicional (TXID dinâmico) ===
+    // === Adicionar TXID ===
     const campoAdicional = '05' + String(txid.length).padStart(2, '0') + txid;
     const campo62 = '62' + String(campoAdicional.length).padStart(2, '0') + campoAdicional;
 
-    // === Montar payload completo antes do CRC ===
+    // === Completar com CRC ===
     const payloadCompleto = payload + campo62 + '6304';
-
-    // === Calcular CRC16 ===
     const crc = calcularCRC16(payloadCompleto);
 
+    console.log('✅ TXID Gerado:', txid);
     return payloadCompleto + crc;
 }
+
 
 
 
