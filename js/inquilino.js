@@ -400,45 +400,34 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
-    function gerarPayloadPixCorreto(valor, identificador) {
-        const CONFIG_PIX = {
-            chave: "02319858784",
-            nome: "Renato B de Carvalho",
-            cidade: "Nilopolis"
-        };
-        
-        const valorCentavos = Math.round(valor * 100);
-        console.log(`💰 Processando ${valor} -> ${valorCentavos} centavos`);
-        
-        // LIMITAR identificador para máximo 15 caracteres
-        const identificadorLimitado = identificador.substring(0, 15);
-        console.log(`🏷️ Identificador: ${identificador} -> ${identificadorLimitado}`);
-        
-        // Payload CORRETO com identificador limitado
-        const payload = 
-            '000201' + 
-            '010212' + 
-            '26' + 
-            '25' + 
-            '0014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave + 
-            '52040000' + 
-            '5303986' + 
-            '54' + valorCentavos.toString().length.toString().padStart(2, '0') + valorCentavos.toString() + 
-            '5802BR' + 
-            '59' + CONFIG_PIX.nome.length.toString().padStart(2, '0') + CONFIG_PIX.nome + 
-            '60' + CONFIG_PIX.cidade.length.toString().padStart(2, '0') + CONFIG_PIX.cidade + 
-            '62' + 
-            '05' + 
-            identificadorLimitado.length.toString().padStart(2, '0') + identificadorLimitado + 
-            '6304';
-
-        const crc = calcularCRC16(payload);
-        const finalPayload = payload + crc;
-        
-        console.log('✅ PIX gerado com identificador limitado');
-        
-        return finalPayload;
-    }
+    // FUNÇÃO SUPER SIMPLIFICADA QUE FUNCIONA
+function gerarPayloadPixCorreto(valor, identificador) {
+    const CONFIG_PIX = {
+        chave: "02319858784",
+        nome: "Renato B de Carvalho",
+        cidade: "Nilopolis"
+    };
+    
+    const valorCentavos = Math.round(valor * 100);
+    
+    // Payload MUITO SIMPLES - formato básico que funciona
+    const payload = 
+        '000201' + // Início
+        '010212' + // QR estático
+        '26330014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave + // Chave PIX
+        '52040000' + // Categoria
+        '5303986' + // Moeda BRL
+        '54' + String(valorCentavos).length.toString().padStart(2, '0') + valorCentavos + // Valor
+        '5802BR' + // País
+        '59' + String(CONFIG_PIX.nome.length).padStart(2, '0') + CONFIG_PIX.nome + // Nome
+        '60' + String(CONFIG_PIX.cidade.length).padStart(2, '0') + CONFIG_PIX.cidade + // Cidade
+        '6207' + // Campo adicional (fixo 7 caracteres)
+        '0503***' + // Identificador simples
+        '6304'; // Fim
+    
+    const crc = calcularCRC16(payload);
+    return payload + crc;
+}
 
     // FUNÇÃO CRC16 CORRIGIDA E TESTADA
     function calcularCRC16(payload) {
