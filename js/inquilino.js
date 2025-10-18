@@ -1,7 +1,13 @@
-// inquilino.js - Versão Corrigida
+// inquilino.js - Versão Corrigida com QRCode
 console.log('=== INICIANDO SISTEMA PIX ===');
 
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ DOM Carregado');
+    console.log('🔍 Verificando bibliotecas...');
+    console.log('QRCode:', typeof QRCode);
+    console.log('Firebase:', typeof firebase);
+    console.log('Bootstrap:', typeof bootstrap);
+
     // Verificar se bibliotecas essenciais estão carregadas
     if (typeof firebase === 'undefined') {
         console.error('❌ Firebase não carregado!');
@@ -14,9 +20,6 @@ document.addEventListener('DOMContentLoaded', function() {
         alert('Erro: Bootstrap não carregado. Recarregue a página.');
         return;
     }
-
-    console.log('✅ Bibliotecas essenciais carregadas');
-    console.log('✅ QRCode disponível:', typeof QRCode !== 'undefined');
 
     const auth = firebase.auth();
     const database = firebase.database();
@@ -315,11 +318,22 @@ document.addEventListener('DOMContentLoaded', function() {
         // Exibir código PIX
         document.getElementById('codigoPixCompleto').value = payloadPix;
         
-        // Gerar QR Code (se a biblioteca estiver disponível)
+        // Gerar QR Code
         const qrDiv = document.getElementById('qrcodePix');
         qrDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Gerando QR Code...</span></div>';
         
-        if (typeof QRCode !== 'undefined') {
+        console.log('🔍 Verificando QRCode antes de gerar:', typeof QRCode);
+        
+        // Tentar gerar QR Code com diferentes métodos
+        setTimeout(() => {
+            gerarQRCode(qrDiv, payloadPix);
+        }, 100);
+    }
+    
+    function gerarQRCode(qrDiv, payloadPix) {
+        // Método 1: Usando QRCode.toCanvas se disponível
+        if (typeof QRCode !== 'undefined' && QRCode.toCanvas) {
+            console.log('✅ Usando QRCode.toCanvas');
             try {
                 QRCode.toCanvas(qrDiv, payloadPix, { 
                     width: 200,
@@ -327,28 +341,64 @@ document.addEventListener('DOMContentLoaded', function() {
                     color: { dark: '#000000', light: '#FFFFFF' }
                 }, function(error) {
                     if (error) {
-                        console.error('❌ Erro ao gerar QR Code:', error);
+                        console.error('❌ Erro QRCode.toCanvas:', error);
                         mostrarFallbackQRCode(qrDiv);
                     } else {
                         console.log('✅ QR Code gerado com sucesso!');
                     }
                 });
+                return;
             } catch (error) {
-                console.error('❌ Erro na geração do QR Code:', error);
-                mostrarFallbackQRCode(qrDiv);
+                console.error('❌ Erro no QRCode.toCanvas:', error);
             }
-        } else {
-            console.warn('⚠️ Biblioteca QRCode não disponível');
-            mostrarFallbackQRCode(qrDiv);
         }
+        
+        // Método 2: Tentar método alternativo
+        if (typeof QRCode !== 'undefined') {
+            console.log('🔄 Tentando método alternativo do QRCode');
+            try {
+                // Algumas versões da biblioteca podem ter APIs diferentes
+                const qr = QRCode(0, 'M');
+                qr.addData(payloadPix);
+                qr.make();
+                
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const size = 200;
+                canvas.width = size;
+                canvas.height = size;
+                
+                const moduleCount = qr.getModuleCount();
+                const tileSize = size / moduleCount;
+                
+                // Desenhar QR Code manualmente
+                for (let row = 0; row < moduleCount; row++) {
+                    for (let col = 0; col < moduleCount; col++) {
+                        ctx.fillStyle = qr.isDark(row, col) ? '#000000' : '#FFFFFF';
+                        ctx.fillRect(col * tileSize, row * tileSize, tileSize, tileSize);
+                    }
+                }
+                
+                qrDiv.innerHTML = '';
+                qrDiv.appendChild(canvas);
+                console.log('✅ QR Code gerado com método alternativo!');
+                return;
+            } catch (error) {
+                console.error('❌ Erro no método alternativo:', error);
+            }
+        }
+        
+        // Método 3: Fallback
+        console.log('⚠️ Usando fallback para QR Code');
+        mostrarFallbackQRCode(qrDiv);
     }
     
     function mostrarFallbackQRCode(qrDiv) {
         qrDiv.innerHTML = `
             <div class="alert alert-warning text-center p-3">
-                <i class="bi bi-info-circle fs-1"></i><br>
-                <strong>Use o código PIX abaixo</strong><br>
-                <small>Copie e cole no seu app bancário</small>
+                <i class="bi bi-qr-code fs-1"></i><br>
+                <strong>QR Code Indisponível</strong><br>
+                <small>Use o código PIX copiável ao lado</small>
             </div>
         `;
     }
