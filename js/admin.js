@@ -94,134 +94,139 @@ function carregarPagamentosEfetuados() {
     const tabela = document.getElementById('tabelaEfetuados');
     if (!tabela) return;
     
-    tabela.innerHTML = '';
+    tabela.innerHTML = '<tr><td colspan="7" class="text-center">Carregando...</td></tr>';
     
     const filtroMes = document.getElementById('filtroMes') ? document.getElementById('filtroMes').value : '';
     const filtroAno = document.getElementById('filtroAno') ? document.getElementById('filtroAno').value : '';
     
-    console.log('🔍 Aplicando filtros - Mês:', filtroMes, 'Ano:', filtroAno);
+    console.log('🔍 Filtros aplicados:', { mes: filtroMes, ano: filtroAno });
     
     database.ref('pagamentos').once('value')
         .then((snapshot) => {
-            if (snapshot.exists()) {
-                const pagamentosEfetuados = [];
-                
-                snapshot.forEach((childSnapshotUid) => {
-                    const uid = childSnapshotUid.key;
-                    
-                    childSnapshotUid.forEach((childSnapshotPagamento) => {
-                        const pagamento = childSnapshotPagamento.val();
-                        const idPagamento = childSnapshotPagamento.key;
-                        
-                        // Filtra apenas pagamentos confirmados/pagos
-                        if (pagamento.status === 'pago' || pagamento.status === 'aprovado') {
-                            let passaFiltro = true;
-                            
-                            // Aplica filtro de mês (se selecionado)
-                            if (filtroMes && pagamento.mes !== filtroMes) {
-                                passaFiltro = false;
-                            }
-                            
-                            // Aplica filtro de ano (se selecionado)
-                            if (filtroAno && pagamento.ano !== filtroAno) {
-                                passaFiltro = false;
-                            }
-                            
-                            if (passaFiltro) {
-                                pagamentosEfetuados.push({
-                                    uid: uid,
-                                    idPagamento: idPagamento,
-                                    pagamento: pagamento
-                                });
-                            }
-                        }
-                    });
-                });
-                
-                console.log('📊 Pagamentos encontrados após filtro:', pagamentosEfetuados.length);
-                
-                // Ordena por data mais recente primeiro
-                pagamentosEfetuados.sort((a, b) => {
-                    const dataA = new Date(a.pagamento.dataPagamento || a.pagamento.dataSolicitacao);
-                    const dataB = new Date(b.pagamento.dataPagamento || b.pagamento.dataSolicitacao);
-                    return dataB - dataA;
-                });
-                
-                // Processa cada pagamento e busca o nome do inquilino
-                let processados = 0;
-                
-                if (pagamentosEfetuados.length === 0) {
-                    let mensagem = 'Nenhum pagamento efetuado encontrado';
-                    if (filtroMes || filtroAno) {
-                        mensagem += ' com os filtros aplicados';
-                    }
-                    tabela.innerHTML = `
-                        <tr>
-                            <td colspan="7" class="text-center">${mensagem}</td>
-                        </tr>
-                    `;
-                    return;
-                }
-                
-                pagamentosEfetuados.forEach((item) => {
-                    database.ref('inquilinos/' + item.uid).once('value')
-                        .then((snapshotInquilino) => {
-                            if (snapshotInquilino.exists()) {
-                                const inquilino = snapshotInquilino.val();
-                                
-                                const linha = document.createElement('tr');
-                                linha.innerHTML = `
-                                    <td>${inquilino.nome}</td>
-                                    <td>${inquilino.casa}</td>
-                                    <td>${item.pagamento.mes}/${item.pagamento.ano}</td>
-                                    <td>R$ ${item.pagamento.valor ? item.pagamento.valor.toFixed(2) : '0.00'}</td>
-                                    <td>${item.pagamento.metodo}</td>
-                                    <td>${formatarData(item.pagamento.dataPagamento)}</td>
-                                    <td>
-                                        <span class="badge bg-success">${item.pagamento.status}</span>
-                                    </td>
-                                `;
-                                
-                                tabela.appendChild(linha);
-                            } else {
-                                // Caso não encontre o inquilino, mostra dados básicos
-                                const linha = document.createElement('tr');
-                                linha.innerHTML = `
-                                    <td>Inquilino não encontrado</td>
-                                    <td>N/A</td>
-                                    <td>${item.pagamento.mes}/${item.pagamento.ano}</td>
-                                    <td>R$ ${item.pagamento.valor ? item.pagamento.valor.toFixed(2) : '0.00'}</td>
-                                    <td>${item.pagamento.metodo}</td>
-                                    <td>${formatarData(item.pagamento.dataPagamento)}</td>
-                                    <td>
-                                        <span class="badge bg-success">${item.pagamento.status}</span>
-                                    </td>
-                                `;
-                                tabela.appendChild(linha);
-                            }
-                            
-                            processados++;
-                        })
-                        .catch((error) => {
-                            console.error('Erro ao buscar dados do inquilino:', error);
-                            processados++;
-                        });
-                });
-            } else {
-                tabela.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="text-center">Nenhum pagamento efetuado encontrado</td>
-                    </tr>
-                `;
+            if (!snapshot.exists()) {
+                tabela.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum pagamento encontrado</td></tr>';
+                return;
             }
+
+            const pagamentosEfetuados = [];
+            const promises = [];
+
+            snapshot.forEach((childSnapshotUid) => {
+                const uid = childSnapshotUid.key;
+                
+                childSnapshotUid.forEach((childSnapshotPagamento) => {
+                    const pagamento = childSnapshotPagamento.val();
+                    const idPagamento = childSnapshotPagamento.key;
+                    
+                    // DEBUG: Mostrar todos os pagamentos
+                    console.log('📄 Pagamento encontrado:', {
+                        uid: uid,
+                        id: idPagamento,
+                        mes: pagamento.mes,
+                        ano: pagamento.ano,
+                        status: pagamento.status,
+                        valor: pagamento.valor
+                    });
+
+                    // Verificar se é um pagamento efetuado
+                    if (pagamento.status === 'pago' || pagamento.status === 'aprovado') {
+                        // Aplicar filtros
+                        let deveIncluir = true;
+                        
+                        if (filtroMes && pagamento.mes != filtroMes) {
+                            deveIncluir = false;
+                            console.log('❌ Filtrado por mês:', pagamento.mes, '!=', filtroMes);
+                        }
+                        
+                        if (filtroAno && pagamento.ano != filtroAno) {
+                            deveIncluir = false;
+                            console.log('❌ Filtrado por ano:', pagamento.ano, '!=', filtroAno);
+                        }
+                        
+                        if (deveIncluir) {
+                            console.log('✅ Incluindo pagamento:', pagamento.mes + '/' + pagamento.ano);
+                            pagamentosEfetuados.push({
+                                uid: uid,
+                                idPagamento: idPagamento,
+                                pagamento: pagamento
+                            });
+                        }
+                    }
+                });
+            });
+
+            console.log('📊 Total de pagamentos após filtro:', pagamentosEfetuados.length);
+
+            if (pagamentosEfetuados.length === 0) {
+                let mensagem = 'Nenhum pagamento efetuado encontrado';
+                if (filtroMes || filtroAno) {
+                    mensagem += ' com os filtros atuais';
+                }
+                tabela.innerHTML = `<tr><td colspan="7" class="text-center">${mensagem}</td></tr>`;
+                return;
+            }
+
+            // Ordenar por data (mais recente primeiro)
+            pagamentosEfetuados.sort((a, b) => {
+                const dataA = new Date(a.pagamento.dataPagamento || a.pagamento.dataSolicitacao || 0);
+                const dataB = new Date(b.pagamento.dataPagamento || b.pagamento.dataSolicitacao || 0);
+                return dataB - dataA;
+            });
+
+            // Limpar tabela
+            tabela.innerHTML = '';
+
+            // Processar cada pagamento
+            pagamentosEfetuados.forEach((item) => {
+                const promise = database.ref('inquilinos/' + item.uid).once('value')
+                    .then((snapshotInquilino) => {
+                        let nomeInquilino = 'Inquilino não encontrado';
+                        let casaInquilino = 'N/A';
+                        
+                        if (snapshotInquilino.exists()) {
+                            const inquilino = snapshotInquilino.val();
+                            nomeInquilino = inquilino.nome;
+                            casaInquilino = inquilino.casa;
+                        }
+
+                        const linha = document.createElement('tr');
+                        linha.innerHTML = `
+                            <td>${nomeInquilino}</td>
+                            <td>${casaInquilino}</td>
+                            <td>${item.pagamento.mes}/${item.pagamento.ano}</td>
+                            <td>R$ ${item.pagamento.valor ? parseFloat(item.pagamento.valor).toFixed(2) : '0.00'}</td>
+                            <td>${item.pagamento.metodo || 'N/A'}</td>
+                            <td>${formatarData(item.pagamento.dataPagamento)}</td>
+                            <td><span class="badge bg-success">${item.pagamento.status}</span></td>
+                        `;
+                        
+                        tabela.appendChild(linha);
+                    })
+                    .catch((error) => {
+                        console.error('Erro ao buscar inquilino:', error);
+                        
+                        // Mesmo com erro, mostra o pagamento
+                        const linha = document.createElement('tr');
+                        linha.innerHTML = `
+                            <td>Erro ao carregar</td>
+                            <td>N/A</td>
+                            <td>${item.pagamento.mes}/${item.pagamento.ano}</td>
+                            <td>R$ ${item.pagamento.valor ? parseFloat(item.pagamento.valor).toFixed(2) : '0.00'}</td>
+                            <td>${item.pagamento.metodo || 'N/A'}</td>
+                            <td>${formatarData(item.pagamento.dataPagamento)}</td>
+                            <td><span class="badge bg-success">${item.pagamento.status}</span></td>
+                        `;
+                        tabela.appendChild(linha);
+                    });
+                
+                promises.push(promise);
+            });
+
+            return Promise.all(promises);
         })
         .catch((error) => {
-            console.error('Erro ao carregar pagamentos efetuados:', error);
-            tabela.innerHTML = `
-                <tr>
-                    <td colspan="7" class="text-center">Erro ao carregar pagamentos</td>
-                </tr>
-            `;
+            console.error('❌ Erro ao carregar pagamentos:', error);
+            tabela.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar pagamentos</td></tr>';
         });
 }
 
