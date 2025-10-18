@@ -6,6 +6,24 @@
     <title>Painel Administrativo</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        .nav-tabs .nav-link.active {
+            font-weight: bold;
+            background-color: #fff;
+            border-bottom: 3px solid #0d6efd;
+        }
+        .tab-pane {
+            padding: 20px 0;
+        }
+        .card {
+            border: none;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+        }
+    </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -25,11 +43,33 @@
     </nav>
 
     <div class="container mt-4">
-        <div class="row">
-            <div class="col-12">
+        <!-- Abas de Navegação -->
+        <ul class="nav nav-tabs" id="adminTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="inquilinos-tab" data-bs-toggle="tab" data-bs-target="#inquilinos" type="button" role="tab">
+                    Gerenciar Inquilinos
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="pendentes-tab" data-bs-toggle="tab" data-bs-target="#pendentes" type="button" role="tab">
+                    Pagamentos Pendentes
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="efetuados-tab" data-bs-toggle="tab" data-bs-target="#efetuados" type="button" role="tab">
+                    Pagamentos Efetuados
+                </button>
+            </li>
+        </ul>
+
+        <!-- Conteúdo das Abas -->
+        <div class="tab-content" id="adminTabsContent">
+            
+            <!-- Aba 1: Gerenciar Inquilinos -->
+            <div class="tab-pane fade show active" id="inquilinos" role="tabpanel">
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h4>Gerenciar Inquilinos</h4>
+                        <h4 class="mb-0">Gerenciar Inquilinos</h4>
                         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoInquilino">
                             Adicionar Inquilino
                         </button>
@@ -55,13 +95,12 @@
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="row mt-4">
-            <div class="col-12">
+
+            <!-- Aba 2: Pagamentos Pendentes -->
+            <div class="tab-pane fade" id="pendentes" role="tabpanel">
                 <div class="card">
                     <div class="card-header">
-                        <h4>Pagamentos Pendentes</h4>
+                        <h4 class="mb-0">Pagamentos Pendentes</h4>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -71,12 +110,64 @@
                                         <th>Inquilino</th>
                                         <th>Casa</th>
                                         <th>Mês/Ano</th>
+                                        <th>Valor</th>
                                         <th>Método</th>
                                         <th>Data Solicitação</th>
                                         <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tabelaPendentes">
+                                    <!-- Dados serão preenchidos via JavaScript -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Aba 3: Pagamentos Efetuados -->
+            <div class="tab-pane fade" id="efetuados" role="tabpanel">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">Pagamentos Efetuados</h4>
+                        <div>
+                            <select class="form-select form-select-sm" id="filtroMes" style="width: auto; display: inline-block;">
+                                <option value="">Todos os meses</option>
+                                <option value="01">Janeiro</option>
+                                <option value="02">Fevereiro</option>
+                                <option value="03">Março</option>
+                                <option value="04">Abril</option>
+                                <option value="05">Maio</option>
+                                <option value="06">Junho</option>
+                                <option value="07">Julho</option>
+                                <option value="08">Agosto</option>
+                                <option value="09">Setembro</option>
+                                <option value="10">Outubro</option>
+                                <option value="11">Novembro</option>
+                                <option value="12">Dezembro</option>
+                            </select>
+                            <select class="form-select form-select-sm ms-2" id="filtroAno" style="width: auto; display: inline-block;">
+                                <option value="">Todos os anos</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Inquilino</th>
+                                        <th>Casa</th>
+                                        <th>Mês/Ano</th>
+                                        <th>Valor</th>
+                                        <th>Método</th>
+                                        <th>Data Pagamento</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaEfetuados">
                                     <!-- Dados serão preenchidos via JavaScript -->
                                 </tbody>
                             </table>
@@ -142,7 +233,7 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     
-    <!-- SCRIPT DE PROTEÇÃO DA PÁGINA (COLOCAR AQUI) -->
+    <!-- SCRIPT DE PROTEÇÃO DA PÁGINA -->
     <script>
         // admin-auth-check.js - Proteção da página admin
         document.addEventListener('DOMContentLoaded', async function() {
@@ -202,6 +293,19 @@
                 localStorage.removeItem('adminAuth');
                 localStorage.removeItem('adminUID');
                 window.location.href = 'admin-login.html';
+            });
+
+            // Configurar filtros dos pagamentos efetuados
+            document.getElementById('filtroMes').addEventListener('change', function() {
+                if (window.adminManager) {
+                    window.adminManager.carregarPagamentosEfetuados();
+                }
+            });
+
+            document.getElementById('filtroAno').addEventListener('change', function() {
+                if (window.adminManager) {
+                    window.adminManager.carregarPagamentosEfetuados();
+                }
             });
             
             console.log('Admin autenticado. Carregando conteúdo...');

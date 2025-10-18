@@ -66,6 +66,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                                 <td>${inquilino.nome}</td>
                                                 <td>${inquilino.casa}</td>
                                                 <td>${pagamento.mes}/${pagamento.ano}</td>
+                                                <td>R$ ${pagamento.valor ? pagamento.valor.toFixed(2) : '0.00'}</td>
                                                 <td>${pagamento.metodo}</td>
                                                 <td>${new Date(pagamento.dataSolicitacao).toLocaleDateString('pt-BR')}</td>
                                                 <td>
@@ -85,6 +86,126 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch((error) => {
                 console.error('Erro ao carregar pagamentos pendentes:', error);
             });
+    }
+
+    // === NOVA FUNÇÃO: Carregar pagamentos efetuados ===
+    function carregarPagamentosEfetuados() {
+        const tabela = document.getElementById('tabelaEfetuados');
+        if (!tabela) return; // Verifica se a tabela existe
+        
+        tabela.innerHTML = '';
+        
+        const filtroMes = document.getElementById('filtroMes') ? document.getElementById('filtroMes').value : '';
+        const filtroAno = document.getElementById('filtroAno') ? document.getElementById('filtroAno').value : '';
+        
+        database.ref('pagamentos').once('value')
+            .then((snapshot) => {
+                if (snapshot.exists()) {
+                    const pagamentosEfetuados = [];
+                    
+                    snapshot.forEach((childSnapshotUid) => {
+                        const uid = childSnapshotUid.key;
+                        
+                        childSnapshotUid.forEach((childSnapshotPagamento) => {
+                            const pagamento = childSnapshotPagamento.val();
+                            const idPagamento = childSnapshotPagamento.key;
+                            
+                            // Filtra apenas pagamentos confirmados/pagos
+                            if (pagamento.status === 'pago' || pagamento.status === 'aprovado') {
+                                // Aplica filtros de mês e ano
+                                if (filtroMes && pagamento.mes !== filtroMes) return;
+                                if (filtroAno && pagamento.ano !== filtroAno) return;
+                                
+                                pagamentosEfetuados.push({
+                                    uid: uid,
+                                    idPagamento: idPagamento,
+                                    pagamento: pagamento
+                                });
+                            }
+                        });
+                    });
+                    
+                    // Ordena por data mais recente primeiro
+                    pagamentosEfetuados.sort((a, b) => {
+                        const dataA = new Date(a.pagamento.dataPagamento || a.pagamento.dataSolicitacao);
+                        const dataB = new Date(b.pagamento.dataPagamento || b.pagamento.dataSolicitacao);
+                        return dataB - dataA;
+                    });
+                    
+                    // Processa cada pagamento e busca o nome do inquilino
+                    let processados = 0;
+                    if (pagamentosEfetuados.length === 0) {
+                        tabela.innerHTML = `
+                            <tr>
+                                <td colspan="7" class="text-center">Nenhum pagamento efetuado encontrado</td>
+                            </tr>
+                        `;
+                        return;
+                    }
+                    
+                    pagamentosEfetuados.forEach((item) => {
+                        database.ref('inquilinos/' + item.uid).once('value')
+                            .then((snapshotInquilino) => {
+                                if (snapshotInquilino.exists()) {
+                                    const inquilino = snapshotInquilino.val();
+                                    
+                                    const linha = document.createElement('tr');
+                                    linha.innerHTML = `
+                                        <td>${inquilino.nome}</td>
+                                        <td>${inquilino.casa}</td>
+                                        <td>${item.pagamento.mes}/${item.pagamento.ano}</td>
+                                        <td>R$ ${item.pagamento.valor ? item.pagamento.valor.toFixed(2) : '0.00'}</td>
+                                        <td>${item.pagamento.metodo}</td>
+                                        <td>${formatarData(item.pagamento.dataPagamento)}</td>
+                                        <td>
+                                            <span class="badge bg-success">${item.pagamento.status}</span>
+                                        </td>
+                                    `;
+                                    
+                                    tabela.appendChild(linha);
+                                }
+                                
+                                processados++;
+                                if (processados === pagamentosEfetuados.length && tabela.children.length === 0) {
+                                    tabela.innerHTML = `
+                                        <tr>
+                                            <td colspan="7" class="text-center">Nenhum pagamento efetuado encontrado</td>
+                                        </tr>
+                                    `;
+                                }
+                            })
+                            .catch((error) => {
+                                console.error('Erro ao buscar dados do inquilino:', error);
+                                processados++;
+                            });
+                    });
+                } else {
+                    tabela.innerHTML = `
+                        <tr>
+                            <td colspan="7" class="text-center">Nenhum pagamento efetuado encontrado</td>
+                        </tr>
+                    `;
+                }
+            })
+            .catch((error) => {
+                console.error('Erro ao carregar pagamentos efetuados:', error);
+                tabela.innerHTML = `
+                    <tr>
+                        <td colspan="7" class="text-center">Erro ao carregar pagamentos</td>
+                    </tr>
+                `;
+            });
+    }
+
+    // === NOVA FUNÇÃO: Formatar data ===
+    function formatarData(dataString) {
+        if (!dataString) return 'N/A';
+        try {
+            const data = new Date(dataString);
+            return data.toLocaleDateString('pt-BR');
+        } catch (error) {
+            return dataString;
+        }
     }
     
     // Adicionar novo inquilino
@@ -134,6 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(() => {
                 alert('Pagamento confirmado!');
                 carregarPagamentosPendentes();
+                carregarPagamentosEfetuados(); // Atualiza a aba de efetuados também
             })
             .catch((error) => {
                 console.error('Erro ao confirmar pagamento:', error);
@@ -171,8 +293,40 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         }
     };
+
+    // === NOVOS EVENT LISTENERS para as abas ===
+    
+    // Recarregar dados quando mudar de aba
+    const tabs = document.querySelectorAll('#adminTabs button[data-bs-toggle="tab"]');
+    tabs.forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function(event) {
+            const target = event.target.getAttribute('data-bs-target');
+            if (target === '#efetuados') {
+                carregarPagamentosEfetuados();
+            } else if (target === '#pendentes') {
+                carregarPagamentosPendentes();
+            } else if (target === '#inquilinos') {
+                carregarInquilinos();
+            }
+        });
+    });
+
+    // Event listeners para os filtros
+    document.addEventListener('change', function(event) {
+        if (event.target.id === 'filtroMes' || event.target.id === 'filtroAno') {
+            carregarPagamentosEfetuados();
+        }
+    });
     
     // Carregar dados iniciais
     carregarInquilinos();
     carregarPagamentosPendentes();
+    
+    // Carrega pagamentos efetuados apenas se a aba estiver ativa
+    setTimeout(() => {
+        const abaAtiva = document.querySelector('#adminTabs .nav-link.active');
+        if (abaAtiva && abaAtiva.getAttribute('data-bs-target') === '#efetuados') {
+            carregarPagamentosEfetuados();
+        }
+    }, 1000);
 });
