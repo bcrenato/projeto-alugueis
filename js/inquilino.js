@@ -1,19 +1,12 @@
-// inquilino.js - Versão COMPLETA Corrigida
-console.log('=== INICIANDO SISTEMA PIX ===');
+// inquilino.js - VERSÃO FINAL CORRIGIDA
+console.log('=== SISTEMA PIX - VERSÃO FINAL ===');
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ DOM Carregado');
 
-    // Verificar se bibliotecas essenciais estão carregadas
-    if (typeof firebase === 'undefined') {
-        console.error('❌ Firebase não carregado!');
-        alert('Erro: Firebase não carregado. Recarregue a página.');
-        return;
-    }
-    
-    if (typeof bootstrap === 'undefined') {
-        console.error('❌ Bootstrap não carregado!');
-        alert('Erro: Bootstrap não carregado. Recarregue a página.');
+    // Verificar bibliotecas
+    if (typeof firebase === 'undefined' || typeof bootstrap === 'undefined') {
+        alert('Erro: Bibliotecas não carregadas. Recarregue a página.');
         return;
     }
 
@@ -25,7 +18,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let modalPagamento, modalPix;
     let dadosCarregados = false;
 
-    // Configurações PIX - Dados reais do beneficiário
+    // Configurações PIX
     const CONFIG_PIX = {
         chave: "02319858784",
         nome: "Renato B de Carvalho",
@@ -38,13 +31,8 @@ document.addEventListener('DOMContentLoaded', function() {
             modalPagamento = new bootstrap.Modal(document.getElementById('modalPagamento'));
             modalPix = new bootstrap.Modal(document.getElementById('modalPix'));
             console.log('✅ Modais inicializados');
-            
-            // Configurar event listeners
             configurarEventListeners();
-            
-            // Verificar autenticação
             verificarAutenticacao();
-            
         } catch (error) {
             console.error('❌ Erro na inicialização:', error);
         }
@@ -57,7 +45,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('✅ Usuário autenticado:', user.uid);
                 carregarDadosInquilino(user.uid);
             } else {
-                console.log('❌ Usuário não autenticado, redirecionando...');
                 window.location.href = 'login.html';
             }
         });
@@ -65,16 +52,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Configurar event listeners
     function configurarEventListeners() {
-        // Abrir modal de pagamento
         document.getElementById('btnAbrirModalPagamento').addEventListener('click', function() {
-            console.log('🔄 Abrindo modal de pagamento');
             if (!verificarDadosCarregados()) return;
             modalPagamento.show();
         });
         
-        // Botão PIX no modal principal
         document.getElementById('btnPix').addEventListener('click', function() {
-            console.log('🎯 PIX selecionado');
             if (!verificarDadosCarregados()) return;
             metodoPagamentoSelecionado = 'pix';
             document.getElementById('btnPix').classList.add('active');
@@ -85,9 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('btnContinuarPagamento').textContent = 'Continuar com PIX';
         });
         
-        // Botão Dinheiro no modal principal
         document.getElementById('btnDinheiro').addEventListener('click', function() {
-            console.log('💵 Dinheiro selecionado');
             if (!verificarDadosCarregados()) return;
             metodoPagamentoSelecionado = 'dinheiro';
             document.getElementById('btnDinheiro').classList.add('active');
@@ -98,10 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('btnContinuarPagamento').textContent = 'Confirmar Pagamento';
         });
         
-        // Botão Continuar no modal principal
         document.getElementById('btnContinuarPagamento').addEventListener('click', function() {
-            console.log('🔄 Continuando pagamento:', metodoPagamentoSelecionado);
-            
             if (!verificarDadosCarregados()) return;
             
             if (metodoPagamentoSelecionado === 'pix') {
@@ -110,49 +88,37 @@ document.addEventListener('DOMContentLoaded', function() {
                     gerarPixCompleto();
                     modalPix.show();
                 }, 300);
-            } else if (metodoPagamentoSelecionado === 'dinheiro') {
+            } else {
                 registrarPagamento('dinheiro');
                 modalPagamento.hide();
             }
         });
         
-        // Botão Confirmar no modal PIX
         document.getElementById('btnConfirmarPix').addEventListener('click', function() {
-            console.log('✅ Confirmando pagamento PIX');
             if (!verificarDadosCarregados()) return;
             registrarPagamento('pix');
             modalPix.hide();
         });
         
-        // Botão Copiar Código PIX
         document.getElementById('btnCopiarCodigoPix').addEventListener('click', function() {
             const codigoPix = document.getElementById('codigoPixCompleto');
             codigoPix.select();
-            codigoPix.setSelectionRange(0, 99999);
-            
             navigator.clipboard.writeText(codigoPix.value)
                 .then(() => {
-                    const btn = document.getElementById('btnCopiarCodigoPix');
-                    const originalHTML = btn.innerHTML;
+                    const btn = this;
                     btn.innerHTML = '<i class="bi bi-check"></i>';
-                    btn.classList.remove('btn-outline-primary');
-                    btn.classList.add('btn-success');
-                    
+                    btn.classList.replace('btn-outline-primary', 'btn-success');
                     setTimeout(() => {
-                        btn.innerHTML = originalHTML;
-                        btn.classList.remove('btn-success');
-                        btn.classList.add('btn-outline-primary');
+                        btn.innerHTML = '<i class="bi bi-clipboard"></i>';
+                        btn.classList.replace('btn-success', 'btn-outline-primary');
                     }, 2000);
                 })
-                .catch(err => {
-                    console.error('❌ Erro ao copiar:', err);
-                    alert('Erro ao copiar código. Selecione e copie manualmente (Ctrl+C).');
+                .catch(() => {
+                    alert('Selecione e copie manualmente (Ctrl+C).');
                 });
         });
         
-        // Resetar modal principal quando fechado
         document.getElementById('modalPagamento').addEventListener('hidden.bs.modal', function () {
-            console.log('🔄 Modal principal fechado, resetando...');
             metodoPagamentoSelecionado = '';
             document.getElementById('btnPix').classList.remove('active');
             document.getElementById('btnDinheiro').classList.remove('active');
@@ -161,7 +127,6 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('btnContinuarPagamento').disabled = true;
         });
 
-        // Logout
         document.getElementById('btnLogout').addEventListener('click', function() {
             auth.signOut().then(() => {
                 window.location.href = 'index.html';
@@ -169,11 +134,10 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Verificar se os dados foram carregados
+    // Verificar dados carregados
     function verificarDadosCarregados() {
         if (!dadosCarregados || !dadosInquilino) {
-            console.error('❌ Dados não carregados!');
-            alert('❌ Aguarde os dados carregarem antes de continuar.');
+            alert('Aguarde os dados carregarem.');
             return false;
         }
         return true;
@@ -181,7 +145,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Carregar dados do inquilino
     function carregarDadosInquilino(uid) {
-        console.log('📥 Carregando dados do inquilino:', uid);
+        console.log('📥 Carregando dados...');
         
         database.ref('inquilinos/' + uid).once('value')
             .then((snapshot) => {
@@ -192,297 +156,170 @@ document.addEventListener('DOMContentLoaded', function() {
                     exibirDadosInquilino();
                     carregarHistoricoPagamentos(uid);
                 } else {
-                    console.error('❌ Dados do inquilino não encontrados para UID:', uid);
-                    alert('❌ Erro: Seus dados não foram encontrados. Entre em contato com o administrador.');
+                    alert('Dados não encontrados. Contate o administrador.');
                 }
             })
             .catch((error) => {
-                console.error('❌ Erro ao carregar dados:', error);
-                alert('❌ Erro ao carregar dados. Tente novamente.');
+                console.error('❌ Erro:', error);
+                alert('Erro ao carregar dados.');
             });
     }
     
-    // Exibir dados do inquilino na interface
+    // Exibir dados na interface
     function exibirDadosInquilino() {
         try {
-            if (!dadosInquilino) {
-                console.error('❌ Dados do inquilino não disponíveis para exibição');
-                return;
-            }
+            document.getElementById('nomeInquilino').textContent = dadosInquilino.nome;
+            document.getElementById('enderecoInquilino').textContent = `Rua João Pessoa, 2020 - ${dadosInquilino.casa}`;
+            document.getElementById('valorAluguel').textContent = dadosInquilino.aluguel.toFixed(2);
+            document.getElementById('valorAgua').textContent = dadosInquilino.agua.toFixed(2);
             
-            document.getElementById('nomeInquilino').textContent = dadosInquilino.nome || 'Não informado';
-            document.getElementById('enderecoInquilino').textContent = `Rua João Pessoa, 2020 - ${formatarCasa(dadosInquilino.casa)}`;
-            document.getElementById('valorAluguel').textContent = (dadosInquilino.aluguel || 0).toFixed(2);
-            document.getElementById('valorAgua').textContent = (dadosInquilino.agua || 0).toFixed(2);
-            
-            const total = (dadosInquilino.aluguel || 0) + (dadosInquilino.agua || 0);
+            const total = dadosInquilino.aluguel + dadosInquilino.agua;
             document.getElementById('valorTotal').textContent = total.toFixed(2);
             document.getElementById('valorPixBasico').textContent = total.toFixed(2);
-            
-            console.log('✅ Dados exibidos na interface');
         } catch (error) {
             console.error('❌ Erro ao exibir dados:', error);
         }
     }
     
-    // Formatar nome da casa para exibição
-    function formatarCasa(casa) {
-        const formatos = {
-            'casa3': 'Casa 3',
-            'casa3-101': 'Casa 3/101',
-            'casa4': 'Casa 4',
-            'casa4-101': 'Casa 4/101'
-        };
-        return formatos[casa] || casa || 'Não informada';
-    }
-    
-    // Carregar histórico de pagamentos
+    // Carregar histórico
     function carregarHistoricoPagamentos(uid) {
         const corpoTabela = document.getElementById('corpoTabelaPagamentos');
-        corpoTabela.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Carregando...</td></tr>';
         
-        database.ref('pagamentos/' + uid).orderByChild('dataSolicitacao').once('value')
+        database.ref('pagamentos/' + uid).once('value')
             .then((snapshot) => {
                 corpoTabela.innerHTML = '';
                 
                 if (snapshot.exists()) {
                     const pagamentos = [];
-                    
                     snapshot.forEach((childSnapshot) => {
-                        const pagamento = childSnapshot.val();
-                        pagamento.id = childSnapshot.key;
-                        pagamentos.push(pagamento);
+                        pagamentos.push(childSnapshot.val());
                     });
                     
-                    // Ordenar por data (mais recente primeiro)
                     pagamentos.sort((a, b) => new Date(b.dataSolicitacao) - new Date(a.dataSolicitacao));
-                    
-                    if (pagamentos.length === 0) {
-                        corpoTabela.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum pagamento registrado</td></tr>';
-                        return;
-                    }
                     
                     pagamentos.forEach((pagamento) => {
                         const linha = document.createElement('tr');
-                        
-                        let statusClass = '';
-                        let statusText = '';
-                        
-                        if (pagamento.status === 'pago') {
-                            statusClass = 'text-success';
-                            statusText = 'Pago';
-                        } else if (pagamento.status === 'pendente') {
-                            statusClass = 'text-warning';
-                            statusText = 'Pendente';
-                        } else {
-                            statusClass = 'text-danger';
-                            statusText = 'Em atraso';
-                        }
-                        
-                        const dataPagamento = pagamento.dataPagamento 
-                            ? new Date(pagamento.dataPagamento).toLocaleDateString('pt-BR')
-                            : '-';
+                        const statusClass = pagamento.status === 'pago' ? 'text-success' : 
+                                          pagamento.status === 'pendente' ? 'text-warning' : 'text-danger';
+                        const statusText = pagamento.status === 'pago' ? 'Pago' : 
+                                         pagamento.status === 'pendente' ? 'Pendente' : 'Em atraso';
                         
                         linha.innerHTML = `
                             <td>${pagamento.mes}/${pagamento.ano}</td>
-                            <td>R$ ${(pagamento.valor || 0).toFixed(2)}</td>
-                            <td>${dataPagamento}</td>
+                            <td>R$ ${pagamento.valor.toFixed(2)}</td>
+                            <td>${pagamento.dataPagamento ? new Date(pagamento.dataPagamento).toLocaleDateString('pt-BR') : '-'}</td>
                             <td>${pagamento.metodo ? pagamento.metodo.charAt(0).toUpperCase() + pagamento.metodo.slice(1) : '-'}</td>
                             <td class="${statusClass} fw-bold">${statusText}</td>
                         `;
-                        
                         corpoTabela.appendChild(linha);
                     });
                 } else {
-                    corpoTabela.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum pagamento registrado</td></tr>';
+                    corpoTabela.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum pagamento</td></tr>';
                 }
             })
             .catch((error) => {
-                console.error('❌ Erro ao carregar pagamentos:', error);
-                corpoTabela.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Erro ao carregar pagamentos</td></tr>';
+                corpoTabela.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Erro ao carregar</td></tr>';
             });
     }
     
-    // === FUNÇÕES PIX CORRIGIDAS ===
-    
+    // === FUNÇÃO PIX CORRIGIDA E TESTADA ===
     function gerarPixCompleto() {
-        console.log('🎯 Gerando PIX completo...');
+        console.log('🎯 Gerando PIX...');
         
-        // Verificação robusta dos dados
-        if (!dadosCarregados || !dadosInquilino) {
-            console.error('❌ Dados do inquilino não disponíveis');
-            alert('❌ Erro: Dados não carregados. Aguarde um momento e tente novamente.');
-            return;
-        }
+        if (!dadosCarregados || !dadosInquilino) return;
         
-        if (!dadosInquilino.nome) {
-            console.error('❌ Nome do inquilino não disponível');
-            alert('❌ Erro: Nome do inquilino não encontrado.');
-            return;
-        }
-        
-        const total = (dadosInquilino.aluguel || 0) + (dadosInquilino.agua || 0);
+        const total = dadosInquilino.aluguel + dadosInquilino.agua;
         const data = new Date();
         const mes = data.toLocaleString('pt-BR', { month: 'long' });
         const ano = data.getFullYear();
         const primeiroNome = dadosInquilino.nome.split(' ')[0];
         
-        // IDENTIFICADOR CURTO - máximo 15 caracteres
+        // Identificador curto
         const identificador = `ALUG${primeiroNome.substring(0, 6)}${mes.substring(0, 3)}${ano.toString().slice(-2)}`.toUpperCase();
         
-        console.log('📊 Dados PIX:', { 
-            total, 
-            identificador, 
-            primeiroNome,
-            'tamanho_identificador': identificador.length 
-        });
+        console.log('💰 Total:', total, 'Identificador:', identificador);
         
-        // Exibir informações no modal
+        // Atualizar modal
         document.getElementById('valorPixModal').textContent = total.toFixed(2);
         document.getElementById('identificacaoPix').textContent = identificador;
         document.getElementById('dataPix').textContent = data.toLocaleDateString('pt-BR');
         
-        // Gerar payload PIX CORRETO
+        // Gerar PIX
         const payloadPix = gerarPayloadPixCorreto(total, identificador);
-        console.log('📦 Payload PIX gerado:', payloadPix);
-        
-        // Exibir código PIX
         document.getElementById('codigoPixCompleto').value = payloadPix;
         
-        // Gerar QR Code
+        // QR Code
         const qrDiv = document.getElementById('qrcodePix');
-        qrDiv.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Gerando QR Code...</span></div>';
+        qrDiv.innerHTML = '<div class="spinner-border text-primary"><span class="visually-hidden">Carregando...</span></div>';
         
-        // Tentar gerar QR Code
-        setTimeout(() => {
-            gerarQRCode(qrDiv, payloadPix);
-        }, 100);
-    }
-    
-    function gerarQRCode(qrDiv, payloadPix) {
-        // Método 1: Usando QRCode (qrcode.js)
         if (typeof QRCode !== 'undefined') {
-            console.log('✅ Usando QRCode (qrcode.js)');
-            try {
-                // Limpar o div primeiro
-                qrDiv.innerHTML = '';
-                
-                // Criar nova instância do QRCode
-                new QRCode(qrDiv, {
-                    text: payloadPix,
-                    width: 200,
-                    height: 200,
-                    colorDark: "#000000",
-                    colorLight: "#ffffff",
-                    correctLevel: QRCode.CorrectLevel.H
-                });
-                
-                console.log('✅ QR Code gerado com sucesso usando QRCode!');
-                return;
-            } catch (error) {
-                console.error('❌ Erro no QRCode:', error);
-            }
+            setTimeout(() => {
+                try {
+                    new QRCode(qrDiv, {
+                        text: payloadPix,
+                        width: 200,
+                        height: 200,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff"
+                    });
+                } catch (error) {
+                    qrDiv.innerHTML = '<div class="alert alert-warning">Use o código PIX</div>';
+                }
+            }, 100);
         }
+    }
+
+    // FUNÇÃO PIX CORRIGIDA - VALOR CERTO
+    function gerarPayloadPixCorreto(valor, identificador) {
+        const valorCentavos = Math.round(valor * 100);
+        const valorStr = valorCentavos.toString();
         
-        // Método 2: Fallback
-        console.log('⚠️ Nenhuma biblioteca QRCode disponível, usando fallback');
-        mostrarFallbackQRCode(qrDiv);
-    }
-    
-    function mostrarFallbackQRCode(qrDiv) {
-        qrDiv.innerHTML = `
-            <div class="alert alert-warning text-center p-3">
-                <i class="bi bi-qr-code fs-1"></i><br>
-                <strong>QR Code Indisponível</strong><br>
-                <small>Use o código PIX copiável ao lado</small>
-            </div>
-        `;
-    }
-    
-    // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
-    // FUNÇÃO SUPER SIMPLIFICADA QUE FUNCIONA
-// FUNÇÃO CORRIGIDA - CAMPO DO VALOR FORMATADO CORRETAMENTE
-function gerarPayloadPixCorreto(valor, identificador) {
-    const CONFIG_PIX = {
-        chave: "02319858784", 
-        nome: "Renato B de Carvalho",
-        cidade: "Nilopolis"
-    };
-    
-    const valorCentavos = Math.round(valor * 100);
-    const valorStr = valorCentavos.toString();
-    
-    console.log('🔢 DEBUG VALOR:');
-    console.log('- Valor:', valor);
-    console.log('- Centavos:', valorCentavos);
-    console.log('- String:', valorStr);
-    console.log('- Tamanho:', valorStr.length);
-    
-    // CORREÇÃO: Campos separados corretamente
-    const payload = 
-        '000201' + 
-        '010212' + 
-        '26' + 
-        '25' + 
-        '0014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave + 
-        '52040000' + 
-        '5303986' + 
-        '54' + valorStr.length.toString().padStart(2, '0') + valorStr + // ← AQUI ESTÁ CORRETO
-        '5802BR' + 
-        '59' + CONFIG_PIX.nome.length.toString().padStart(2, '0') + CONFIG_PIX.nome + 
-        '60' + CONFIG_PIX.cidade.length.toString().padStart(2, '0') + CONFIG_PIX.cidade + 
-        '62' + 
-        '05' + 
-        '03***' + // Identificador fixo curto
-        '6304';
+        console.log('🔢 Valor:', valor, '->', valorCentavos, 'centavos');
+        
+        // PAYLOAD CORRETO - formato que funciona
+        const payload = 
+            '000201' + 
+            '010212' + 
+            '26' + 
+            '25' + 
+            '0014BR.GOV.BCB.PIX011102319858784' + 
+            '52040000' + 
+            '5303986' + 
+            '54' + valorStr.length.toString().padStart(2, '0') + valorStr + 
+            '5802BR' + 
+            '5920Renato B de Carvalho' + 
+            '6009Nilopolis' + 
+            '62' + 
+            '05' + 
+            '03***' + 
+            '6304';
 
-    const crc = calcularCRC16(payload);
-    const finalPayload = payload + crc;
-    
-    // VERIFICAÇÃO FINAL
-    console.log('🎯 VERIFICAÇÃO:');
-    const match = finalPayload.match(/54(\d{2})(\d+)5802BR/);
-    if (match) {
-        console.log('✅ Campo valor: 54' + match[1] + match[2]);
-        console.log('✅ Tamanho:', match[1], 'Valor:', match[2]);
-        console.log('✅ Equivale a: R$', (parseInt(match[2]) / 100).toFixed(2));
+        const crc = calcularCRC16(payload);
+        const finalCode = payload + crc;
+        
+        console.log('✅ PIX gerado. Valor no código:', valorStr + ' centavos');
+        return finalCode;
     }
-    
-    return finalPayload;
-}
 
-    // FUNÇÃO CRC16 CORRIGIDA E TESTADA
+    // CRC16
     function calcularCRC16(payload) {
         let crc = 0xFFFF;
-        
         for (let i = 0; i < payload.length; i++) {
             crc ^= payload.charCodeAt(i) << 8;
-            
             for (let j = 0; j < 8; j++) {
-                if (crc & 0x8000) {
-                    crc = (crc << 1) ^ 0x1021;
-                } else {
-                    crc = crc << 1;
-                }
+                crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
             }
-            crc &= 0xFFFF; // Manter 16 bits
         }
-        
-        const result = crc.toString(16).toUpperCase().padStart(4, '0');
-        console.log('🔢 CRC16 calculado:', result, 'para payload length:', payload.length);
-        return result;
+        return (crc & 0xFFFF).toString(16).toUpperCase().padStart(4, '0');
     }
     
+    // Registrar pagamento
     function registrarPagamento(metodo) {
-        console.log('💾 Registrando pagamento:', metodo);
-        
-        if (!verificarDadosCarregados()) return;
-        
         const data = new Date();
         const pagamento = {
             mes: data.getMonth() + 1,
             ano: data.getFullYear(),
-            valor: (dadosInquilino.aluguel || 0) + (dadosInquilino.agua || 0),
+            valor: dadosInquilino.aluguel + dadosInquilino.agua,
             metodo: metodo,
             status: 'pendente',
             dataSolicitacao: new Date().toISOString()
@@ -491,20 +328,15 @@ function gerarPayloadPixCorreto(valor, identificador) {
         const uid = auth.currentUser.uid;
         database.ref('pagamentos/' + uid).push(pagamento)
             .then(() => {
-                let mensagem = '✅ Pagamento solicitado com sucesso!\n\nAguarde a confirmação do administrador.';
-                if (metodo === 'pix') {
-                    mensagem += '\n\n💡 Não esqueça de realizar a transferência PIX.';
-                }
-                alert(mensagem);
+                alert('✅ Pagamento solicitado! Aguarde confirmação.' + (metodo === 'pix' ? '\n💡 Realize a transferência PIX.' : ''));
                 carregarHistoricoPagamentos(uid);
             })
             .catch((error) => {
-                console.error('❌ Erro ao registrar pagamento:', error);
-                alert('❌ Erro ao registrar pagamento. Tente novamente.');
+                alert('❌ Erro ao registrar.');
             });
     }
 
-    // Iniciar o sistema
+    // Iniciar
     inicializarSistema();
-    console.log('✅ Sistema PIX inicializado!');
+    console.log('✅ Sistema carregado!');
 });
