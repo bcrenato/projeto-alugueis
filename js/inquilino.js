@@ -1,4 +1,4 @@
-// inquilino.js - Versão Corrigida com PIX Funcional
+// inquilino.js - Versão COMPLETA Corrigida
 console.log('=== INICIANDO SISTEMA PIX ===');
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Configurações PIX - Dados reais do beneficiário
     const CONFIG_PIX = {
-        chave: "02319858784", // Sua chave PIX
+        chave: "02319858784",
         nome: "Renato B de Carvalho",
         cidade: "Nilopolis"
     };
@@ -327,12 +327,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const ano = data.getFullYear();
         const primeiroNome = dadosInquilino.nome.split(' ')[0];
         
-        // Criar identificador único (máximo 25 caracteres)
-        // Identificador MAIS CURTO - máximo 15 caracteres
-const identificador = `ALUG${primeiroNome.substring(0, 6)}${mes.substring(0, 3)}${ano.toString().slice(-2)}`.toUpperCase();
-console.log('🏷️ Identificador curto:', identificador);
+        // IDENTIFICADOR CURTO - máximo 15 caracteres
+        const identificador = `ALUG${primeiroNome.substring(0, 6)}${mes.substring(0, 3)}${ano.toString().slice(-2)}`.toUpperCase();
         
-        console.log('📊 Dados PIX:', { total, identificador, primeiroNome });
+        console.log('📊 Dados PIX:', { 
+            total, 
+            identificador, 
+            primeiroNome,
+            'tamanho_identificador': identificador.length 
+        });
         
         // Exibir informações no modal
         document.getElementById('valorPixModal').textContent = total.toFixed(2);
@@ -397,69 +400,67 @@ console.log('🏷️ Identificador curto:', identificador);
     }
     
     // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
-    // FUNÇÃO COMPLETAMENTE CORRIGIDA - Substitua esta função
-// FUNÇÃO CORRIGIDA - Identificador limitado
-function gerarPayloadPixCorreto(valor, identificador) {
-    const CONFIG_PIX = {
-        chave: "02319858784",
-        nome: "Renato B de Carvalho",
-        cidade: "Nilopolis"
-    };
-    
-    const valorCentavos = Math.round(valor * 100);
-    console.log(`💰 Processando ${valor} -> ${valorCentavos} centavos`);
-    
-    // LIMITAR identificador para máximo 20 caracteres
-    const identificadorLimitado = identificador.substring(0, 20);
-    console.log(`🏷️ Identificador: ${identificador} -> ${identificadorLimitado}`);
-    
-    // Payload CORRETO com identificador limitado
-    const payload = 
-        '000201' + 
-        '010212' + 
-        '26' + 
-        '25' + 
-        '0014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave + 
-        '52040000' + 
-        '5303986' + 
-        '54' + valorCentavos.toString().length.toString().padStart(2, '0') + valorCentavos.toString() + 
-        '5802BR' + 
-        '59' + CONFIG_PIX.nome.length.toString().padStart(2, '0') + CONFIG_PIX.nome + 
-        '60' + CONFIG_PIX.cidade.length.toString().padStart(2, '0') + CONFIG_PIX.cidade + 
-        '62' + 
-        '05' + 
-        identificadorLimitado.length.toString().padStart(2, '0') + identificadorLimitado + 
-        '6304';
-
-    const crc = calcularCRC16(payload);
-    const finalPayload = payload + crc;
-    
-    console.log('✅ PIX gerado com identificador limitado');
-    
-    return finalPayload;
-}
-
-// FUNÇÃO CRC16 CORRIGIDA E TESTADA
-function calcularCRC16(payload) {
-    let crc = 0xFFFF;
-    
-    for (let i = 0; i < payload.length; i++) {
-        crc ^= payload.charCodeAt(i) << 8;
+    function gerarPayloadPixCorreto(valor, identificador) {
+        const CONFIG_PIX = {
+            chave: "02319858784",
+            nome: "Renato B de Carvalho",
+            cidade: "Nilopolis"
+        };
         
-        for (let j = 0; j < 8; j++) {
-            if (crc & 0x8000) {
-                crc = (crc << 1) ^ 0x1021;
-            } else {
-                crc = crc << 1;
-            }
-        }
-        crc &= 0xFFFF; // Manter 16 bits
+        const valorCentavos = Math.round(valor * 100);
+        console.log(`💰 Processando ${valor} -> ${valorCentavos} centavos`);
+        
+        // LIMITAR identificador para máximo 15 caracteres
+        const identificadorLimitado = identificador.substring(0, 15);
+        console.log(`🏷️ Identificador: ${identificador} -> ${identificadorLimitado}`);
+        
+        // Payload CORRETO com identificador limitado
+        const payload = 
+            '000201' + 
+            '010212' + 
+            '26' + 
+            '25' + 
+            '0014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave + 
+            '52040000' + 
+            '5303986' + 
+            '54' + valorCentavos.toString().length.toString().padStart(2, '0') + valorCentavos.toString() + 
+            '5802BR' + 
+            '59' + CONFIG_PIX.nome.length.toString().padStart(2, '0') + CONFIG_PIX.nome + 
+            '60' + CONFIG_PIX.cidade.length.toString().padStart(2, '0') + CONFIG_PIX.cidade + 
+            '62' + 
+            '05' + 
+            identificadorLimitado.length.toString().padStart(2, '0') + identificadorLimitado + 
+            '6304';
+
+        const crc = calcularCRC16(payload);
+        const finalPayload = payload + crc;
+        
+        console.log('✅ PIX gerado com identificador limitado');
+        
+        return finalPayload;
     }
-    
-    const result = crc.toString(16).toUpperCase().padStart(4, '0');
-    console.log('🔢 CRC16 calculado:', result, 'para payload length:', payload.length);
-    return result;
-}
+
+    // FUNÇÃO CRC16 CORRIGIDA E TESTADA
+    function calcularCRC16(payload) {
+        let crc = 0xFFFF;
+        
+        for (let i = 0; i < payload.length; i++) {
+            crc ^= payload.charCodeAt(i) << 8;
+            
+            for (let j = 0; j < 8; j++) {
+                if (crc & 0x8000) {
+                    crc = (crc << 1) ^ 0x1021;
+                } else {
+                    crc = crc << 1;
+                }
+            }
+            crc &= 0xFFFF; // Manter 16 bits
+        }
+        
+        const result = crc.toString(16).toUpperCase().padStart(4, '0');
+        console.log('🔢 CRC16 calculado:', result, 'para payload length:', payload.length);
+        return result;
+    }
     
     function registrarPagamento(metodo) {
         console.log('💾 Registrando pagamento:', metodo);
