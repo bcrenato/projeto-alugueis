@@ -1,8 +1,3 @@
-00:47
-
-
-
-
 // inquilino.js - Versão COMPLETA Corrigida
 console.log('=== INICIANDO SISTEMA PIX ===');
 
