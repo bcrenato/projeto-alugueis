@@ -408,26 +408,27 @@ function gerarPayloadPixCorreto(valor, identificador) {
         cidade: "Nilopolis"
     };
     
-    const valorCentavos = Math.round(valor * 100);
-    
-    // Payload MUITO SIMPLES - formato básico que funciona
+    // valor precisa ter ponto decimal com 2 casas
+    const valorFormatado = valor.toFixed(2);
+
     const payload = 
         '000201' + // Início
         '010212' + // QR estático
         '26330014BR.GOV.BCB.PIX0111' + CONFIG_PIX.chave + // Chave PIX
         '52040000' + // Categoria
         '5303986' + // Moeda BRL
-        '54' + String(valorCentavos).length.toString().padStart(2, '0') + valorCentavos + // Valor
+        '54' + String(valorFormatado.length).padStart(2, '0') + valorFormatado + // ✅ Valor correto
         '5802BR' + // País
         '59' + String(CONFIG_PIX.nome.length).padStart(2, '0') + CONFIG_PIX.nome + // Nome
         '60' + String(CONFIG_PIX.cidade.length).padStart(2, '0') + CONFIG_PIX.cidade + // Cidade
-        '6207' + // Campo adicional (fixo 7 caracteres)
+        '6207' + // Campo adicional
         '0503***' + // Identificador simples
         '6304'; // Fim
-    
+
     const crc = calcularCRC16(payload);
     return payload + crc;
 }
+
 
     // FUNÇÃO CRC16 CORRIGIDA E TESTADA
     function calcularCRC16(payload) {
