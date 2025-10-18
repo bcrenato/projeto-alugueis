@@ -328,7 +328,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const primeiroNome = dadosInquilino.nome.split(' ')[0];
         
         // Criar identificador único (máximo 25 caracteres)
-        const identificador = `AluguelJP${primeiroNome}${mes.charAt(0).toUpperCase() + mes.slice(1)}${ano}`.substring(0, 25);
+        // Identificador MAIS CURTO - máximo 15 caracteres
+const identificador = `ALUG${primeiroNome.substring(0, 6)}${mes.substring(0, 3)}${ano.toString().slice(-2)}`.toUpperCase();
+console.log('🏷️ Identificador curto:', identificador);
         
         console.log('📊 Dados PIX:', { total, identificador, primeiroNome });
         
@@ -396,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
     // FUNÇÃO COMPLETAMENTE CORRIGIDA - Substitua esta função
-// FUNÇÃO COMPLETA E CORRIGIDA - Substitua no seu arquivo
+// FUNÇÃO CORRIGIDA - Identificador limitado
 function gerarPayloadPixCorreto(valor, identificador) {
     const CONFIG_PIX = {
         chave: "02319858784",
@@ -407,7 +409,11 @@ function gerarPayloadPixCorreto(valor, identificador) {
     const valorCentavos = Math.round(valor * 100);
     console.log(`💰 Processando ${valor} -> ${valorCentavos} centavos`);
     
-    // Payload CORRETO - Versão que funciona
+    // LIMITAR identificador para máximo 20 caracteres
+    const identificadorLimitado = identificador.substring(0, 20);
+    console.log(`🏷️ Identificador: ${identificador} -> ${identificadorLimitado}`);
+    
+    // Payload CORRETO com identificador limitado
     const payload = 
         '000201' + 
         '010212' + 
@@ -422,14 +428,13 @@ function gerarPayloadPixCorreto(valor, identificador) {
         '60' + CONFIG_PIX.cidade.length.toString().padStart(2, '0') + CONFIG_PIX.cidade + 
         '62' + 
         '05' + 
-        identificador.length.toString().padStart(2, '0') + identificador + 
+        identificadorLimitado.length.toString().padStart(2, '0') + identificadorLimitado + 
         '6304';
 
-    // CRC16
     const crc = calcularCRC16(payload);
     const finalPayload = payload + crc;
     
-    console.log('✅ PIX gerado com valor correto');
+    console.log('✅ PIX gerado com identificador limitado');
     
     return finalPayload;
 }
