@@ -2,8 +2,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const auth = firebase.auth();
     const database = firebase.database();
     
-    // Variável para armazenar o UID do inquilino sendo editado
+    // Variáveis para armazenar estados
     let inquilinoEditando = null;
+    let pagamentoEditando = null;
     
     // Carregar lista de inquilinos
     function carregarInquilinos() {
@@ -32,11 +33,39 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         tabela.appendChild(linha);
                     });
+                    
+                    // Atualizar o filtro de inquilinos na aba de pagamentos efetuados
+                    atualizarFiltroInquilinos(snapshot);
                 }
             })
             .catch((error) => {
                 console.error('Erro ao carregar inquilinos:', error);
             });
+    }
+    
+    // === NOVA FUNÇÃO: Atualizar filtro de inquilinos ===
+    function atualizarFiltroInquilinos(snapshot) {
+        const selectInquilino = document.getElementById('filtroInquilino');
+        if (!selectInquilino) return;
+        
+        // Limpar opções existentes (mantendo "Todos os inquilinos")
+        const opcaoTodos = selectInquilino.options[0];
+        selectInquilino.innerHTML = '';
+        selectInquilino.appendChild(opcaoTodos);
+        
+        if (snapshot.exists()) {
+            snapshot.forEach((childSnapshot) => {
+                const inquilino = childSnapshot.val();
+                const uid = childSnapshot.key;
+                
+                const option = document.createElement('option');
+                option.value = uid;
+                option.textContent = `${inquilino.nome} - ${inquilino.casa}`;
+                selectInquilino.appendChild(option);
+            });
+            
+            console.log('✅ Filtro de inquilinos atualizado');
+        }
     }
     
     // Carregar pagamentos pendentes
@@ -93,17 +122,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const tabela = document.getElementById('tabelaEfetuados');
         if (!tabela) return;
         
-        tabela.innerHTML = '<tr><td colspan="7" class="text-center">Carregando...</td></tr>';
+        tabela.innerHTML = '<tr><td colspan="8" class="text-center">Carregando...</td></tr>';
         
         const filtroMes = document.getElementById('filtroMes') ? document.getElementById('filtroMes').value : '';
         const filtroAno = document.getElementById('filtroAno') ? document.getElementById('filtroAno').value : '';
+        const filtroInquilino = document.getElementById('filtroInquilino') ? document.getElementById('filtroInquilino').value : '';
         
-        console.log('🔍 Filtros aplicados:', { mes: filtroMes, ano: filtroAno });
+        console.log('🔍 Filtros aplicados:', { mes: filtroMes, ano: filtroAno, inquilino: filtroInquilino });
         
         database.ref('pagamentos').once('value')
             .then((snapshot) => {
                 if (!snapshot.exists()) {
-                    tabela.innerHTML = '<tr><td colspan="7" class="text-center">Nenhum pagamento encontrado</td></tr>';
+                    tabela.innerHTML = '<tr><td colspan="8" class="text-center">Nenhum pagamento encontrado</td></tr>';
                     return;
                 }
 
@@ -113,20 +143,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 snapshot.forEach((childSnapshotUid) => {
                     const uid = childSnapshotUid.key;
                     
+                    // Aplicar filtro de inquilino
+                    if (filtroInquilino && uid !== filtroInquilino) {
+                        return;
+                    }
+                    
                     childSnapshotUid.forEach((childSnapshotPagamento) => {
                         const pagamento = childSnapshotPagamento.val();
                         const idPagamento = childSnapshotPagamento.key;
                         
-                        // DEBUG: Mostrar todos os pagamentos
-                        console.log('📄 Pagamento encontrado:', {
-                            uid: uid,
-                            id: idPagamento,
-                            mes: pagamento.mes,
-                            ano: pagamento.ano,
-                            status: pagamento.status,
-                            valor: pagamento.valor
-                        });
-
                         // Verificar se é um pagamento efetuado
                         if (pagamento.status === 'pago' || pagamento.status === 'aprovado') {
                             // Aplicar filtros
@@ -134,16 +159,13 @@ document.addEventListener('DOMContentLoaded', function() {
                             
                             if (filtroMes && pagamento.mes != filtroMes) {
                                 deveIncluir = false;
-                                console.log('❌ Filtrado por mês:', pagamento.mes, '!=', filtroMes);
                             }
                             
                             if (filtroAno && pagamento.ano != filtroAno) {
                                 deveIncluir = false;
-                                console.log('❌ Filtrado por ano:', pagamento.ano, '!=', filtroAno);
                             }
                             
                             if (deveIncluir) {
-                                console.log('✅ Incluindo pagamento:', pagamento.mes + '/' + pagamento.ano);
                                 pagamentosEfetuados.push({
                                     uid: uid,
                                     idPagamento: idPagamento,
@@ -158,10 +180,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (pagamentosEfetuados.length === 0) {
                     let mensagem = 'Nenhum pagamento efetuado encontrado';
-                    if (filtroMes || filtroAno) {
+                    if (filtroMes || filtroAno || filtroInquilino) {
                         mensagem += ' com os filtros atuais';
                     }
-                    tabela.innerHTML = `<tr><td colspan="7" class="text-center">${mensagem}</td></tr>`;
+                    tabela.innerHTML = `<tr><td colspan="8" class="text-center">${mensagem}</td></tr>`;
                     return;
                 }
 
@@ -197,6 +219,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <td>${item.pagamento.metodo || 'N/A'}</td>
                                 <td>${formatarData(item.pagamento.dataPagamento)}</td>
                                 <td><span class="badge bg-success">${item.pagamento.status}</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning" onclick="editarPagamento('${item.uid}', '${item.idPagamento}')">Editar</button>
+                                    <button class="btn btn-sm btn-danger" onclick="excluirPagamento('${item.uid}', '${item.idPagamento}')">Excluir</button>
+                                </td>
                             `;
                             
                             tabela.appendChild(linha);
@@ -214,6 +240,10 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <td>${item.pagamento.metodo || 'N/A'}</td>
                                 <td>${formatarData(item.pagamento.dataPagamento)}</td>
                                 <td><span class="badge bg-success">${item.pagamento.status}</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-warning" onclick="editarPagamento('${item.uid}', '${item.idPagamento}')">Editar</button>
+                                    <button class="btn btn-sm btn-danger" onclick="excluirPagamento('${item.uid}', '${item.idPagamento}')">Excluir</button>
+                                </td>
                             `;
                             tabela.appendChild(linha);
                         });
@@ -225,7 +255,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch((error) => {
                 console.error('❌ Erro ao carregar pagamentos:', error);
-                tabela.innerHTML = '<tr><td colspan="7" class="text-center">Erro ao carregar pagamentos</td></tr>';
+                tabela.innerHTML = '<tr><td colspan="8" class="text-center">Erro ao carregar pagamentos</td></tr>';
             });
     }
 
@@ -254,15 +284,12 @@ document.addEventListener('DOMContentLoaded', function() {
             .then((snapshot) => {
                 if (!snapshot.exists()) {
                     console.log('ℹ️ Nenhum pagamento encontrado para extrair anos');
-                    // Adicionar anos padrão como fallback
                     adicionarAnosPadrao(selectAno);
                     return;
                 }
                 
                 const anosUnicos = new Set();
                 const anoAtual = new Date().getFullYear();
-                
-                console.log('🔍 Analisando estrutura de pagamentos...');
                 
                 // Coletar todos os anos existentes nos pagamentos
                 snapshot.forEach((childSnapshotUid) => {
@@ -271,7 +298,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         if (pagamento.ano && pagamento.ano.toString().trim() !== '') {
                             const ano = pagamento.ano.toString();
                             anosUnicos.add(ano);
-                            console.log(`✅ Ano encontrado: ${ano}`);
                         }
                     });
                 });
@@ -279,12 +305,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Adicionar ano atual se não existir
                 if (!anosUnicos.has(anoAtual.toString())) {
                     anosUnicos.add(anoAtual.toString());
-                    console.log(`✅ Ano atual adicionado: ${anoAtual}`);
                 }
                 
                 // Adicionar alguns anos anteriores como fallback se estiver vazio
                 if (anosUnicos.size === 0) {
-                    console.log('ℹ️ Nenhum ano encontrado, usando anos padrão');
                     adicionarAnosPadrao(selectAno);
                     return;
                 }
@@ -292,9 +316,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Converter para array e ordenar do mais recente para o mais antigo
                 const anosArray = Array.from(anosUnicos).sort((a, b) => b - a);
                 
-                console.log('📊 Anos ordenados:', anosArray);
-                
-                // Limpar e reconstruir o select (mantendo a opção "Todos os anos")
+                // Limpar e reconstruir o select
                 const opcaoTodos = selectAno.options[0];
                 selectAno.innerHTML = '';
                 selectAno.appendChild(opcaoTodos);
@@ -312,7 +334,6 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch((error) => {
                 console.error('❌ Erro ao carregar anos disponíveis:', error);
-                // Em caso de erro, usar anos padrão
                 const selectAno = document.getElementById('filtroAno');
                 if (selectAno) {
                     adicionarAnosPadrao(selectAno);
@@ -347,15 +368,12 @@ document.addEventListener('DOMContentLoaded', function() {
             option.textContent = ano;
             selectElement.appendChild(option);
         });
-        
-        console.log('✅ Anos padrão carregados:', anosPadrao);
     }
     
-    // === FUNÇÃO: Abrir modal de edição ===
+    // === FUNÇÃO: Abrir modal de edição de inquilino ===
     window.editarInquilino = function(uid) {
         inquilinoEditando = uid;
         
-        // Buscar dados do inquilino
         database.ref('inquilinos/' + uid).once('value')
             .then((snapshot) => {
                 if (snapshot.exists()) {
@@ -385,6 +403,54 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Erro ao carregar dados do inquilino.');
             });
     };
+
+    // === NOVA FUNÇÃO: Abrir modal de edição de pagamento ===
+    window.editarPagamento = function(uid, idPagamento) {
+        pagamentoEditando = { uid, idPagamento };
+        
+        database.ref(`pagamentos/${uid}/${idPagamento}`).once('value')
+            .then((snapshot) => {
+                if (snapshot.exists()) {
+                    const pagamento = snapshot.val();
+                    
+                    // Preencher o formulário com os dados atuais
+                    document.getElementById('editMes').value = pagamento.mes;
+                    document.getElementById('editAno').value = pagamento.ano;
+                    document.getElementById('editValor').value = pagamento.valor;
+                    document.getElementById('editMetodo').value = pagamento.metodo || '';
+                    document.getElementById('editDataPagamento').value = formatarDataParaInput(pagamento.dataPagamento);
+                    
+                    // Buscar nome do inquilino para exibir
+                    database.ref('inquilinos/' + uid).once('value')
+                        .then((snapInquilino) => {
+                            if (snapInquilino.exists()) {
+                                const inquilino = snapInquilino.val();
+                                document.getElementById('nomeInquilinoPagamento').textContent = 
+                                    `${inquilino.nome} - ${inquilino.casa}`;
+                            }
+                        });
+                    
+                    // Abrir o modal
+                    const modal = new bootstrap.Modal(document.getElementById('modalEditarPagamento'));
+                    modal.show();
+                }
+            })
+            .catch((error) => {
+                console.error('Erro ao carregar dados do pagamento:', error);
+                alert('Erro ao carregar dados do pagamento.');
+            });
+    };
+
+    // === FUNÇÃO AUXILIAR: Formatar data para input date ===
+    function formatarDataParaInput(dataString) {
+        if (!dataString) return '';
+        try {
+            const data = new Date(dataString);
+            return data.toISOString().split('T')[0];
+        } catch (error) {
+            return '';
+        }
+    }
     
     // === FUNÇÃO: Salvar/Atualizar inquilino ===
     document.getElementById('btnSalvarInquilino').addEventListener('click', function() {
@@ -405,7 +471,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 agua: agua
             };
             
-            // Se foi informada uma nova senha, atualizar no Auth também
             if (senha && senha.trim() !== '') {
                 auth.currentUser.updatePassword(senha)
                     .then(() => {
@@ -413,14 +478,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     })
                     .catch((error) => {
                         console.error('Erro ao atualizar senha:', error);
-                        // Continua mesmo se der erro na senha
                     });
             }
             
             database.ref('inquilinos/' + inquilinoEditando).update(dadosAtualizados)
                 .then(() => {
                     alert('Inquilino atualizado com sucesso!');
-                    fecharModal();
+                    fecharModalInquilino();
                     carregarInquilinos();
                 })
                 .catch((error) => {
@@ -451,7 +515,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(() => {
                     alert('Inquilino cadastrado com sucesso!');
-                    fecharModal();
+                    fecharModalInquilino();
                     carregarInquilinos();
                 })
                 .catch((error) => {
@@ -460,23 +524,70 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
         }
     });
+
+    // === NOVA FUNÇÃO: Salvar edição de pagamento ===
+    document.getElementById('btnSalvarPagamento').addEventListener('click', function() {
+        if (!pagamentoEditando) return;
+        
+        const mes = document.getElementById('editMes').value;
+        const ano = document.getElementById('editAno').value;
+        const valor = parseFloat(document.getElementById('editValor').value);
+        const metodo = document.getElementById('editMetodo').value;
+        const dataPagamento = document.getElementById('editDataPagamento').value;
+        
+        if (!mes || !ano || !valor) {
+            alert('Por favor, preencha todos os campos obrigatórios.');
+            return;
+        }
+        
+        const dadosAtualizados = {
+            mes: mes,
+            ano: ano,
+            valor: valor,
+            metodo: metodo,
+            dataPagamento: dataPagamento ? new Date(dataPagamento).toISOString() : null
+        };
+        
+        database.ref(`pagamentos/${pagamentoEditando.uid}/${pagamentoEditando.idPagamento}`).update(dadosAtualizados)
+            .then(() => {
+                alert('Pagamento atualizado com sucesso!');
+                fecharModalPagamento();
+                carregarPagamentosEfetuados();
+            })
+            .catch((error) => {
+                console.error('Erro ao atualizar pagamento:', error);
+                alert('Erro ao atualizar pagamento. Verifique os dados e tente novamente.');
+            });
+    });
     
-    // === FUNÇÃO: Fechar modal e resetar formulário ===
-    function fecharModal() {
+    // === FUNÇÃO: Fechar modal e resetar formulário de inquilino ===
+    function fecharModalInquilino() {
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalNovoInquilino'));
         modal.hide();
         
-        // Resetar formulário
         document.getElementById('formNovoInquilino').reset();
         document.querySelector('#modalNovoInquilino .modal-title').textContent = 'Adicionar Inquilino';
         document.getElementById('btnSalvarInquilino').textContent = 'Salvar';
         document.getElementById('senha').closest('.mb-3').style.display = 'block';
         inquilinoEditando = null;
     }
+
+    // === NOVA FUNÇÃO: Fechar modal de pagamento ===
+    function fecharModalPagamento() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarPagamento'));
+        modal.hide();
+        
+        document.getElementById('formEditarPagamento').reset();
+        pagamentoEditando = null;
+    }
     
     // === EVENTO: Quando o modal é fechado ===
     document.getElementById('modalNovoInquilino').addEventListener('hidden.bs.modal', function() {
-        fecharModal();
+        fecharModalInquilino();
+    });
+
+    document.getElementById('modalEditarPagamento').addEventListener('hidden.bs.modal', function() {
+        fecharModalPagamento();
     });
     
     // Funções globais para os botões de ação
@@ -508,16 +619,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Erro ao rejeitar pagamento.');
             });
     };
+
+    // === NOVA FUNÇÃO: Excluir pagamento ===
+    window.excluirPagamento = function(uid, idPagamento) {
+        if (confirm('Tem certeza que deseja excluir este pagamento?\n\nEsta ação não pode ser desfeita!')) {
+            database.ref(`pagamentos/${uid}/${idPagamento}`).remove()
+                .then(() => {
+                    alert('Pagamento excluído com sucesso!');
+                    carregarPagamentosEfetuados();
+                })
+                .catch((error) => {
+                    console.error('Erro ao excluir pagamento:', error);
+                    alert('Erro ao excluir pagamento.');
+                });
+        }
+    };
     
     window.excluirInquilino = function(uid) {
         if (confirm('Tem certeza que deseja excluir este inquilino?\n\nEsta ação não pode ser desfeita!')) {
-            // Primeiro excluir do Authentication
             auth.getUser(uid)
                 .then((userRecord) => {
                     return auth.deleteUser(uid);
                 })
                 .then(() => {
-                    // Depois excluir do Realtime Database
                     return database.ref('inquilinos/' + uid).remove();
                 })
                 .then(() => {
@@ -527,7 +651,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 .catch((error) => {
                     console.error('Erro ao excluir inquilino:', error);
                     
-                    // Se não conseguir excluir do Auth, tenta apenas do Database
                     database.ref('inquilinos/' + uid).remove()
                         .then(() => {
                             alert('Inquilino excluído do sistema, mas pode restar o usuário no login.');
@@ -557,7 +680,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Event listeners para os filtros
     document.addEventListener('change', function(event) {
-        if (event.target.id === 'filtroMes' || event.target.id === 'filtroAno') {
+        if (event.target.id === 'filtroMes' || event.target.id === 'filtroAno' || event.target.id === 'filtroInquilino') {
             carregarPagamentosEfetuados();
         }
     });
