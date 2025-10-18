@@ -66,7 +66,7 @@
                         <p><strong>Valor Aluguel:</strong> R$ <span id="valorAluguel"></span></p>
                         <p><strong>Valor Água:</strong> R$ <span id="valorAgua"></span></p>
                         <p><strong>Total:</strong> R$ <span id="valorTotal"></span></p>
-                        <button class="btn btn-primary w-100 mt-3" data-bs-toggle="modal" data-bs-target="#modalPagamento">
+                        <button class="btn btn-primary w-100 mt-3" id="btnAbrirModalPagamento">
                             Realizar Pagamento
                         </button>
                     </div>
@@ -76,88 +76,105 @@
     </div>
 
     <!-- Modal de Pagamento Principal -->
-    <div class="modal fade" id="modalPagamento" tabindex="-1">
+    <div class="modal fade" id="modalPagamento" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Realizar Pagamento</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Selecione o método de pagamento:</label>
                         <div class="d-grid gap-2">
-                            <button type="button" class="btn btn-outline-primary" id="btnPix">PIX</button>
-                            <button type="button" class="btn btn-outline-success" id="btnDinheiro">Dinheiro</button>
+                            <button type="button" class="btn btn-outline-primary" id="btnPix">
+                                <i class="bi bi-qr-code"></i> PIX
+                            </button>
+                            <button type="button" class="btn btn-outline-success" id="btnDinheiro">
+                                <i class="bi bi-cash"></i> Dinheiro
+                            </button>
                         </div>
                     </div>
                     
                     <div id="conteudoPix" class="d-none">
-                        <div class="text-center mb-3">
-                            <h5>Pague via PIX</h5>
-                            <p>Valor: <strong>R$ <span id="valorPixBasico"></span></strong></p>
-                            <p>Clique em "Confirmar Pagamento" para gerar o QR Code</p>
-                            <p class="text-muted small">Após o pagamento, aguarde a confirmação do administrador.</p>
+                        <div class="text-center mb-3 p-3 bg-light rounded">
+                            <h5 class="text-primary">Pagamento via PIX</h5>
+                            <p class="mb-2">Valor total: <strong class="fs-5">R$ <span id="valorPixBasico">0,00</span></strong></p>
+                            <p class="text-muted small">Clique em "Continuar com PIX" para gerar o QR Code</p>
                         </div>
                     </div>
                     
                     <div id="conteudoDinheiro" class="d-none">
-                        <div class="text-center">
-                            <h5>Pagamento em Dinheiro</h5>
-                            <p>Entre em contato com o administrador para combinar o pagamento.</p>
+                        <div class="text-center p-3 bg-light rounded">
+                            <h5 class="text-success">Pagamento em Dinheiro</h5>
+                            <p class="mb-2">Entre em contato com o administrador para combinar o pagamento.</p>
                             <p class="text-muted small">Após o pagamento, aguarde a confirmação do administrador.</p>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-primary" id="btnConfirmarPagamento" disabled>Confirmar Pagamento</button>
+                    <button type="button" class="btn btn-primary" id="btnContinuarPagamento" disabled>
+                        Continuar
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
     <!-- Modal PIX Completo -->
-    <div class="modal fade" id="modalPix" tabindex="-1">
+    <div class="modal fade" id="modalPix" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Pagamento via PIX</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-qr-code"></i> Pagamento via PIX
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row">
-                        <div class="col-md-6 text-center">
-                            <h6>Escaneie o QR Code</h6>
-                            <div id="qrcodePix" class="mb-3"></div>
-                            <p class="text-muted small">Use o app do seu banco para escanear</p>
+                        <div class="col-md-6 text-center border-end">
+                            <h6 class="text-primary mb-3">Escaneie o QR Code</h6>
+                            <div id="qrcodePix" class="mb-3 d-flex justify-content-center">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Gerando QR Code...</span>
+                                </div>
+                            </div>
+                            <p class="text-muted small">
+                                <i class="bi bi-phone"></i> Use o app do seu banco para escanear
+                            </p>
                         </div>
                         <div class="col-md-6">
-                            <h6>Ou copie o código PIX</h6>
+                            <h6 class="text-primary mb-3">Ou copie o código PIX</h6>
                             <div class="mb-3">
-                                <label class="form-label">Código PIX Copia e Cola:</label>
+                                <label class="form-label fw-bold">Código PIX Copia e Cola:</label>
                                 <div class="input-group">
-                                    <textarea class="form-control" id="codigoPixCompleto" rows="6" readonly 
-                                              style="font-family: monospace; font-size: 12px;"></textarea>
+                                    <textarea class="form-control" id="codigoPixCompleto" rows="5" readonly 
+                                              style="font-family: 'Courier New', monospace; font-size: 11px; resize: none;"></textarea>
                                     <button class="btn btn-outline-primary" type="button" id="btnCopiarCodigoPix">
-                                        <i class="bi bi-clipboard"></i> Copiar
+                                        <i class="bi bi-clipboard"></i>
                                     </button>
                                 </div>
+                                <div class="form-text">Clique no botão para copiar o código</div>
                             </div>
                             
                             <div class="alert alert-info">
-                                <small>
-                                    <strong>Informações do pagamento:</strong><br>
-                                    Valor: R$ <span id="valorPixModal"></span><br>
-                                    Beneficiário: Renato B de Carvalho<br>
-                                    Identificação: <span id="identificacaoPix"></span>
-                                </small>
+                                <h6 class="alert-heading">Informações do pagamento:</h6>
+                                <div class="small">
+                                    <strong>Valor:</strong> R$ <span id="valorPixModal">0,00</span><br>
+                                    <strong>Beneficiário:</strong> Renato B de Carvalho<br>
+                                    <strong>Identificação:</strong> <span id="identificacaoPix">-</span><br>
+                                    <strong>Data:</strong> <span id="dataPix"></span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-arrow-left"></i> Voltar
+                    </button>
                     <button type="button" class="btn btn-success" id="btnConfirmarPix">
                         <i class="bi bi-check-lg"></i> Confirmar Pagamento
                     </button>
