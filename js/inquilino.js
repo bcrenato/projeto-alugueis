@@ -328,7 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const primeiroNome = dadosInquilino.nome.split(' ')[0];
         
         // IDENTIFICADOR CURTO - máximo 15 caracteres
-        const identificador = `ALUG${primeiroNome.substring(0, 6)}${mes.substring(0, 3)}${ano.toString().slice(-2)}`.toUpperCase();
+        const identificador = `ALUGUEL_${primeiroNome.substring(0, 10)}_${mes.substring(0, 3)}${ano.toString().slice(-2)}`.toUpperCase();
         
         console.log('📊 Dados PIX:', { 
             total, 
