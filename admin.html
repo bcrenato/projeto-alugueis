@@ -131,25 +131,28 @@
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h4 class="mb-0">Pagamentos Efetuados</h4>
                         <div>
-                            <select class="form-select form-select-sm" id="filtroMes" style="width: auto; display: inline-block;">
+                            <select class="form-select form-select-sm" id="filtroInquilino" style="width: auto; display: inline-block;">
+                                <option value="">Todos os inquilinos</option>
+                            </select>
+                            <select class="form-select form-select-sm ms-2" id="filtroMes" style="width: auto; display: inline-block;">
                                 <option value="">Todos os meses</option>
-                                <option value="01">Janeiro</option>
-                                <option value="02">Fevereiro</option>
-                                <option value="03">Março</option>
-                                <option value="04">Abril</option>
-                                <option value="05">Maio</option>
-                                <option value="06">Junho</option>
-                                <option value="07">Julho</option>
-                                <option value="08">Agosto</option>
-                                <option value="09">Setembro</option>
+                                <option value="1">Janeiro</option>
+                                <option value="2">Fevereiro</option>
+                                <option value="3">Março</option>
+                                <option value="4">Abril</option>
+                                <option value="5">Maio</option>
+                                <option value="6">Junho</option>
+                                <option value="7">Julho</option>
+                                <option value="8">Agosto</option>
+                                <option value="9">Setembro</option>
                                 <option value="10">Outubro</option>
                                 <option value="11">Novembro</option>
                                 <option value="12">Dezembro</option>
                             </select>
                             <select class="form-select form-select-sm ms-2" id="filtroAno" style="width: auto; display: inline-block;">
-    <option value="">Todos os anos</option>
-    <!-- Os anos serão carregados automaticamente via JavaScript -->
-</select>
+                                <option value="">Todos os anos</option>
+                                <!-- Os anos serão carregados automaticamente via JavaScript -->
+                            </select>
                         </div>
                     </div>
                     <div class="card-body">
@@ -164,6 +167,7 @@
                                         <th>Método</th>
                                         <th>Data Pagamento</th>
                                         <th>Status</th>
+                                        <th>Ações</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tabelaEfetuados">
@@ -222,6 +226,70 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" id="btnSalvarInquilino">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Editar Pagamento -->
+    <div class="modal fade" id="modalEditarPagamento" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Editar Pagamento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formEditarPagamento">
+                        <div class="mb-3">
+                            <label class="form-label">Inquilino</label>
+                            <p class="form-control-plaintext" id="nomeInquilinoPagamento" style="font-weight: bold;"></p>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editMes" class="form-label">Mês</label>
+                            <select class="form-select" id="editMes" required>
+                                <option value="">Selecione o mês</option>
+                                <option value="1">Janeiro</option>
+                                <option value="2">Fevereiro</option>
+                                <option value="3">Março</option>
+                                <option value="4">Abril</option>
+                                <option value="5">Maio</option>
+                                <option value="6">Junho</option>
+                                <option value="7">Julho</option>
+                                <option value="8">Agosto</option>
+                                <option value="9">Setembro</option>
+                                <option value="10">Outubro</option>
+                                <option value="11">Novembro</option>
+                                <option value="12">Dezembro</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editAno" class="form-label">Ano</label>
+                            <input type="number" class="form-control" id="editAno" min="2020" max="2030" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editValor" class="form-label">Valor</label>
+                            <input type="number" class="form-control" id="editValor" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editMetodo" class="form-label">Método de Pagamento</label>
+                            <select class="form-select" id="editMetodo">
+                                <option value="">Selecione o método</option>
+                                <option value="PIX">PIX</option>
+                                <option value="Dinheiro">Dinheiro</option>
+                                <option value="Cartão">Cartão</option>
+                                <option value="Transferência">Transferência</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="editDataPagamento" class="form-label">Data do Pagamento</label>
+                            <input type="date" class="form-control" id="editDataPagamento">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnSalvarPagamento">Salvar Alterações</button>
                 </div>
             </div>
         </div>
@@ -295,17 +363,33 @@
             });
 
             // Configurar filtros dos pagamentos efetuados
-            document.getElementById('filtroMes').addEventListener('change', function() {
-                if (window.adminManager) {
-                    window.adminManager.carregarPagamentosEfetuados();
-                }
-            });
-
-            document.getElementById('filtroAno').addEventListener('change', function() {
-                if (window.adminManager) {
-                    window.adminManager.carregarPagamentosEfetuados();
-                }
-            });
+            const filtroMes = document.getElementById('filtroMes');
+            const filtroAno = document.getElementById('filtroAno');
+            const filtroInquilino = document.getElementById('filtroInquilino');
+            
+            if (filtroMes) {
+                filtroMes.addEventListener('change', function() {
+                    if (window.adminManager) {
+                        window.adminManager.carregarPagamentosEfetuados();
+                    }
+                });
+            }
+            
+            if (filtroAno) {
+                filtroAno.addEventListener('change', function() {
+                    if (window.adminManager) {
+                        window.adminManager.carregarPagamentosEfetuados();
+                    }
+                });
+            }
+            
+            if (filtroInquilino) {
+                filtroInquilino.addEventListener('change', function() {
+                    if (window.adminManager) {
+                        window.adminManager.carregarPagamentosEfetuados();
+                    }
+                });
+            }
             
             console.log('Admin autenticado. Carregando conteúdo...');
         });
