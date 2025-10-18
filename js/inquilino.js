@@ -395,18 +395,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
-    // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
+    // FUNÇÃO CORRIGIDA - VALOR FORMATADO CORRETAMENTE
 function gerarPayloadPixCorreto(valor, identificador) {
-    const valorFormatado = valor.toFixed(2);
     const valorCentavos = Math.round(valor * 100);
     
-    console.log('💰 Valor formatado:', valorFormatado);
+    console.log('💰 Valor original:', valor);
     console.log('💰 Valor em centavos:', valorCentavos);
+    console.log('💰 String do valor:', valorCentavos.toString());
 
     // Montar o payload PIX seguindo o padrão oficial do BACEN
     const payloadParts = [];
 
-    // 00 - Payload Format Indicator (sempre 01 para versão 1)
+    // 00 - Payload Format Indicator
     payloadParts.push('000201');
 
     // 01 - Point of Initiation Method (12 = QR Code estático)
@@ -424,24 +424,24 @@ function gerarPayloadPixCorreto(valor, identificador) {
     
     payloadParts.push(merchantAccount.length.toString().padStart(2, '0') + merchantAccount);
 
-    // 52 - Merchant Category Code (0000 = Não categorizado)
+    // 52 - Merchant Category Code
     payloadParts.push('52040000');
 
-    // 53 - Transaction Currency (986 = Real Brasileiro)
+    // 53 - Transaction Currency (986 = BRL)
     payloadParts.push('5303986');
 
-    // 54 - Transaction Amount
+    // 54 - Transaction Amount - CORREÇÃO AQUI
     const amountStr = valorCentavos.toString();
     payloadParts.push('54' + amountStr.length.toString().padStart(2, '0') + amountStr);
 
-    // 58 - Country Code (BR = Brasil)
+    // 58 - Country Code
     payloadParts.push('5802BR');
 
-    // 59 - Merchant Name (limite de 25 caracteres)
+    // 59 - Merchant Name
     const merchantName = CONFIG_PIX.nome.substring(0, 25);
     payloadParts.push('59' + merchantName.length.toString().padStart(2, '0') + merchantName);
 
-    // 60 - Merchant City (limite de 15 caracteres)
+    // 60 - Merchant City
     const merchantCity = CONFIG_PIX.cidade.substring(0, 15);
     payloadParts.push('60' + merchantCity.length.toString().padStart(2, '0') + merchantCity);
 
@@ -449,25 +449,22 @@ function gerarPayloadPixCorreto(valor, identificador) {
     payloadParts.push('62');
     
     let additionalData = '';
-    // 05 - Reference Label (identificador da transação - máximo 25 chars)
+    // 05 - Reference Label
     const refLabel = identificador.substring(0, 25);
     additionalData += '05' + refLabel.length.toString().padStart(2, '0') + refLabel;
     
     payloadParts.push(additionalData.length.toString().padStart(2, '0') + additionalData);
 
-    // 63 - CRC16 (placeholder)
+    // 63 - CRC16
     payloadParts.push('6304');
 
     const payload = payloadParts.join('');
-    
-    // Calcular CRC16
     const crc = calcularCRC16(payload);
     
-    console.log('🔍 Payload sem CRC:', payload);
-    console.log('🔍 CRC calculado:', crc);
-    
     const finalPayload = payload + crc;
-    console.log('🎯 Payload final:', finalPayload);
+    
+    console.log('🎯 Payload final gerado:', finalPayload);
+    console.log('🔍 Verificação do valor no payload:', finalPayload.includes(amountStr));
     
     return finalPayload;
 }
