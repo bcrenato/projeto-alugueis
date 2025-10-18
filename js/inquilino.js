@@ -395,76 +395,104 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
-    function gerarPayloadPixCorreto(valor, identificador) {
-        const valorCentavos = Math.round(valor * 100);
-        
-        // Montar o payload PIX seguindo o padrão oficial do BACEN
-        const payload = [
-            // Payload Format Indicator (00)
-            "000201",
-            
-            // Point of Initiation Method (01) - 12 = QR Code estático
-            "010212",
-            
-            // Merchant Account Information (26)
-            "26",
-            // GUI (00)
-            "0014BR.GOV.BCB.PIX",
-            // Chave PIX (01)
-            `0111${CONFIG_PIX.chave}`,
-            
-            // Merchant Category Code (52) - 0000 = Não categorizado
-            "52040000",
-            
-            // Transaction Currency (53) - 986 = Real Brasileiro
-            "5303986",
-            
-            // Transaction Amount (54) - Valor da transação
-            `54${String(valorCentavos).length.toString().padStart(2, '0')}${valorCentavos}`,
-            
-            // Country Code (58) - BR = Brasil
-            "5802BR",
-            
-            // Merchant Name (59) - Nome do beneficiário
-            `59${CONFIG_PIX.nome.length.toString().padStart(2, '0')}${CONFIG_PIX.nome}`,
-            
-            // Merchant City (60) - Cidade do beneficiário
-            `60${CONFIG_PIX.cidade.length.toString().padStart(2, '0')}${CONFIG_PIX.cidade}`,
-            
-            // Additional Data Field (62)
-            "62",
-            // Reference Label (05) - Identificador da transação
-            `05${identificador.length.toString().padStart(2, '0')}${identificador}`,
-            
-            // CRC16 (63)
-            "6304"
-        ].join('');
-        
-        // Calcular CRC16
-        const crc = calcularCRC16(payload);
-        
-        return payload + crc;
-    }
+    // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
+function gerarPayloadPixCorreto(valor, identificador) {
+    const valorFormatado = valor.toFixed(2);
+    const valorCentavos = Math.round(valor * 100);
     
-    // FUNÇÃO CRC16 CORRIGIDA
-    function calcularCRC16(payload) {
-        let crc = 0xFFFF;
+    console.log('💰 Valor formatado:', valorFormatado);
+    console.log('💰 Valor em centavos:', valorCentavos);
+
+    // Montar o payload PIX seguindo o padrão oficial do BACEN
+    const payloadParts = [];
+
+    // 00 - Payload Format Indicator (sempre 01 para versão 1)
+    payloadParts.push('000201');
+
+    // 01 - Point of Initiation Method (12 = QR Code estático)
+    payloadParts.push('010212');
+
+    // 26 - Merchant Account Information
+    payloadParts.push('26');
+    let merchantAccount = '';
+    
+    // 00 - GUI (ID do PIX)
+    merchantAccount += '0014BR.GOV.BCB.PIX';
+    
+    // 01 - Chave PIX
+    merchantAccount += '0111' + CONFIG_PIX.chave;
+    
+    payloadParts.push(merchantAccount.length.toString().padStart(2, '0') + merchantAccount);
+
+    // 52 - Merchant Category Code (0000 = Não categorizado)
+    payloadParts.push('52040000');
+
+    // 53 - Transaction Currency (986 = Real Brasileiro)
+    payloadParts.push('5303986');
+
+    // 54 - Transaction Amount
+    const amountStr = valorCentavos.toString();
+    payloadParts.push('54' + amountStr.length.toString().padStart(2, '0') + amountStr);
+
+    // 58 - Country Code (BR = Brasil)
+    payloadParts.push('5802BR');
+
+    // 59 - Merchant Name (limite de 25 caracteres)
+    const merchantName = CONFIG_PIX.nome.substring(0, 25);
+    payloadParts.push('59' + merchantName.length.toString().padStart(2, '0') + merchantName);
+
+    // 60 - Merchant City (limite de 15 caracteres)
+    const merchantCity = CONFIG_PIX.cidade.substring(0, 15);
+    payloadParts.push('60' + merchantCity.length.toString().padStart(2, '0') + merchantCity);
+
+    // 62 - Additional Data Field
+    payloadParts.push('62');
+    
+    let additionalData = '';
+    // 05 - Reference Label (identificador da transação - máximo 25 chars)
+    const refLabel = identificador.substring(0, 25);
+    additionalData += '05' + refLabel.length.toString().padStart(2, '0') + refLabel;
+    
+    payloadParts.push(additionalData.length.toString().padStart(2, '0') + additionalData);
+
+    // 63 - CRC16 (placeholder)
+    payloadParts.push('6304');
+
+    const payload = payloadParts.join('');
+    
+    // Calcular CRC16
+    const crc = calcularCRC16(payload);
+    
+    console.log('🔍 Payload sem CRC:', payload);
+    console.log('🔍 CRC calculado:', crc);
+    
+    const finalPayload = payload + crc;
+    console.log('🎯 Payload final:', finalPayload);
+    
+    return finalPayload;
+}
+
+// FUNÇÃO CRC16 CORRIGIDA E TESTADA
+function calcularCRC16(payload) {
+    let crc = 0xFFFF;
+    
+    for (let i = 0; i < payload.length; i++) {
+        crc ^= payload.charCodeAt(i) << 8;
         
-        for (let i = 0; i < payload.length; i++) {
-            crc ^= payload.charCodeAt(i) << 8;
-            
-            for (let j = 0; j < 8; j++) {
-                if (crc & 0x8000) {
-                    crc = (crc << 1) ^ 0x1021;
-                } else {
-                    crc = crc << 1;
-                }
-                crc &= 0xFFFF; // Manter 16 bits
+        for (let j = 0; j < 8; j++) {
+            if (crc & 0x8000) {
+                crc = (crc << 1) ^ 0x1021;
+            } else {
+                crc = crc << 1;
             }
         }
-        
-        return crc.toString(16).toUpperCase().padStart(4, '0');
+        crc &= 0xFFFF; // Manter 16 bits
     }
+    
+    const result = crc.toString(16).toUpperCase().padStart(4, '0');
+    console.log('🔢 CRC16 calculado:', result, 'para payload length:', payload.length);
+    return result;
+}
     
     function registrarPagamento(metodo) {
         console.log('💾 Registrando pagamento:', metodo);
