@@ -1,15 +1,14 @@
 // Configuração do Firebase
 const firebaseConfig = {
     // INSIRA SUAS CONFIGURAÇÕES DO FIREBASE AQUI
-    apiKey: "sua-api-key",
-    authDomain: "seu-projeto.firebaseapp.com",
-    databaseURL: "https://seu-projeto-default-rtdb.firebaseio.com",
-    projectId: "seu-projeto",
-    storageBucket: "seu-projeto.appspot.com",
-    messagingSenderId: "seu-sender-id",
-    appId: "seu-app-id"
+    apiKey: "AIzaSyBoAk9yyUMEBrCFabZcKglTLo8uNj9bVLs",
+  authDomain: "appaluguel-7095f.firebaseapp.com",
+  databaseURL: "https://appaluguel-7095f-default-rtdb.firebaseio.com",
+  projectId: "appaluguel-7095f",
+  storageBucket: "appaluguel-7095f.firebasestorage.app",
+  messagingSenderId: "525901149755",
+  appId: "1:525901149755:web:bcb5d8786bc20d27cd0e1e"
 };
-
 // Inicializar Firebase
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
