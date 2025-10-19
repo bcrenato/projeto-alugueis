@@ -36,11 +36,61 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Atualizar o filtro de inquilinos na aba de pagamentos efetuados
                     atualizarFiltroInquilinos(snapshot);
+                    // Atualizar o select de inquilinos para pagamentos manuais
+                    carregarInquilinosParaPagamento();
                 }
             })
             .catch((error) => {
                 console.error('Erro ao carregar inquilinos:', error);
             });
+    }
+    
+    // === NOVA FUNÇÃO: Carregar inquilinos no select de pagamentos ===
+    function carregarInquilinosParaPagamento() {
+        const selectInquilino = document.getElementById('selectInquilinoPagamento');
+        if (!selectInquilino) return;
+        
+        selectInquilino.innerHTML = '<option value="">Selecione o inquilino</option>';
+        
+        database.ref('inquilinos').once('value')
+            .then((snapshot) => {
+                if (snapshot.exists()) {
+                    snapshot.forEach((childSnapshot) => {
+                        const inquilino = childSnapshot.val();
+                        const uid = childSnapshot.key;
+                        
+                        const option = document.createElement('option');
+                        option.value = uid;
+                        option.textContent = `${inquilino.nome} - ${inquilino.casa} (Aluguel: R$ ${inquilino.aluguel.toFixed(2)} + Água: R$ ${inquilino.agua.toFixed(2)})`;
+                        option.setAttribute('data-aluguel', inquilino.aluguel);
+                        option.setAttribute('data-agua', inquilino.agua);
+                        selectInquilino.appendChild(option);
+                    });
+                }
+            })
+            .catch((error) => {
+                console.error('Erro ao carregar inquilinos para pagamento:', error);
+            });
+    }
+
+    // === NOVA FUNÇÃO: Calcular valor automaticamente ===
+    function calcularValorPagamento() {
+        const selectInquilino = document.getElementById('selectInquilinoPagamento');
+        const checkAgua = document.getElementById('checkAluguelAgua');
+        const inputValor = document.getElementById('novoValor');
+        
+        if (!selectInquilino || !selectInquilino.value) return;
+        
+        const selectedOption = selectInquilino.options[selectInquilino.selectedIndex];
+        const aluguel = parseFloat(selectedOption.getAttribute('data-aluguel'));
+        const agua = parseFloat(selectedOption.getAttribute('data-agua'));
+        
+        let valorTotal = aluguel;
+        if (checkAgua && checkAgua.checked) {
+            valorTotal += agua;
+        }
+        
+        inputValor.value = valorTotal.toFixed(2);
     }
     
     // === NOVA FUNÇÃO: Atualizar filtro de inquilinos ===
@@ -269,6 +319,17 @@ document.addEventListener('DOMContentLoaded', function() {
             return dataString;
         }
     }
+
+    // === FUNÇÃO AUXILIAR: Formatar data para input date ===
+    function formatarDataParaInput(dataString) {
+        if (!dataString) return '';
+        try {
+            const data = new Date(dataString);
+            return data.toISOString().split('T')[0];
+        } catch (error) {
+            return '';
+        }
+    }
     
     // === FUNÇÃO: Detectar e carregar anos existentes nos pagamentos ===
     function carregarAnosDisponiveis() {
@@ -440,17 +501,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Erro ao carregar dados do pagamento.');
             });
     };
-
-    // === FUNÇÃO AUXILIAR: Formatar data para input date ===
-    function formatarDataParaInput(dataString) {
-        if (!dataString) return '';
-        try {
-            const data = new Date(dataString);
-            return data.toISOString().split('T')[0];
-        } catch (error) {
-            return '';
-        }
-    }
     
     // === FUNÇÃO: Salvar/Atualizar inquilino ===
     document.getElementById('btnSalvarInquilino').addEventListener('click', function() {
@@ -559,6 +609,74 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('Erro ao atualizar pagamento. Verifique os dados e tente novamente.');
             });
     });
+
+    // === NOVA FUNÇÃO: Registrar pagamento manual ===
+    document.getElementById('btnRegistrarPagamento').addEventListener('click', function() {
+        const uidInquilino = document.getElementById('selectInquilinoPagamento').value;
+        const mes = document.getElementById('novoMes').value;
+        const ano = document.getElementById('novoAno').value;
+        const valor = parseFloat(document.getElementById('novoValor').value);
+        const metodo = document.getElementById('novoMetodo').value;
+        const dataPagamento = document.getElementById('novaDataPagamento').value;
+        
+        if (!uidInquilino || !mes || !ano || !valor || !metodo || !dataPagamento) {
+            alert('Por favor, preencha todos os campos obrigatórios.');
+            return;
+        }
+        
+        // Verificar se já existe pagamento para este mês/ano
+        database.ref(`pagamentos/${uidInquilino}`).orderByChild('mes').equalTo(mes).once('value')
+            .then((snapshot) => {
+                let pagamentoExistente = false;
+                
+                snapshot.forEach((childSnapshot) => {
+                    const pagamento = childSnapshot.val();
+                    if (pagamento.ano == ano) {
+                        pagamentoExistente = true;
+                    }
+                });
+                
+                if (pagamentoExistente) {
+                    if (!confirm('Já existe um pagamento registrado para este mês/ano. Deseja substituí-lo?')) {
+                        return;
+                    }
+                }
+                
+                // Criar novo pagamento
+                const novoPagamentoRef = database.ref(`pagamentos/${uidInquilino}`).push();
+                const dadosPagamento = {
+                    mes: mes,
+                    ano: ano,
+                    valor: valor,
+                    metodo: metodo,
+                    dataPagamento: new Date(dataPagamento).toISOString(),
+                    status: 'pago',
+                    tipo: 'manual',
+                    registradoPor: 'admin',
+                    dataRegistro: new Date().toISOString()
+                };
+                
+                return novoPagamentoRef.set(dadosPagamento);
+            })
+            .then(() => {
+                alert('Pagamento registrado com sucesso!');
+                
+                // Fechar modal e resetar formulário
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalNovoPagamento'));
+                modal.hide();
+                document.getElementById('formNovoPagamento').reset();
+                
+                // Atualizar dados
+                carregarPagamentosEfetuados();
+                
+                // Recarregar anos disponíveis
+                carregarAnosDisponiveis();
+            })
+            .catch((error) => {
+                console.error('Erro ao registrar pagamento:', error);
+                alert('Erro ao registrar pagamento: ' + error.message);
+            });
+    });
     
     // === FUNÇÃO: Fechar modal e resetar formulário de inquilino ===
     function fecharModalInquilino() {
@@ -588,6 +706,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('modalEditarPagamento').addEventListener('hidden.bs.modal', function() {
         fecharModalPagamento();
+    });
+
+    // === EVENTO: Quando o modal de pagamento for aberto ===
+    document.getElementById('modalNovoPagamento').addEventListener('show.bs.modal', function() {
+        // Garantir que os inquilinos estão carregados
+        carregarInquilinosParaPagamento();
+        
+        // Configurar ano atual
+        const anoAtual = new Date().getFullYear();
+        document.getElementById('novoAno').value = anoAtual;
+        
+        // Resetar checkbox
+        const checkAgua = document.getElementById('checkAluguelAgua');
+        if (checkAgua) checkAgua.checked = false;
     });
     
     // Funções globais para os botões de ação
@@ -678,10 +810,16 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Event listeners para os filtros
+    // Event listeners para os filtros e cálculos
     document.addEventListener('change', function(event) {
+        // Filtros de pagamentos efetuados
         if (event.target.id === 'filtroMes' || event.target.id === 'filtroAno' || event.target.id === 'filtroInquilino') {
             carregarPagamentosEfetuados();
+        }
+        
+        // Cálculo automático de valor para pagamento manual
+        if (event.target.id === 'selectInquilinoPagamento' || event.target.id === 'checkAluguelAgua') {
+            calcularValorPagamento();
         }
     });
     
