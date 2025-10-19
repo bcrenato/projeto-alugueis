@@ -70,9 +70,14 @@
                 <div class="card">
                     <div class="card-header d-flex justify-content-between align-items-center">
                         <h4 class="mb-0">Gerenciar Inquilinos</h4>
-                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoInquilino">
-                            Adicionar Inquilino
-                        </button>
+                        <div>
+                            <button class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#modalNovoPagamento">
+                                Registrar Pagamento
+                            </button>
+                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoInquilino">
+                                Adicionar Inquilino
+                            </button>
+                        </div>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
@@ -231,6 +236,85 @@
         </div>
     </div>
 
+    <!-- Modal Registrar Pagamento Manual -->
+    <div class="modal fade" id="modalNovoPagamento" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Registrar Pagamento Manual</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="formNovoPagamento">
+                        <div class="mb-3">
+                            <label for="selectInquilinoPagamento" class="form-label">Inquilino</label>
+                            <select class="form-select" id="selectInquilinoPagamento" required>
+                                <option value="">Selecione o inquilino</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="novoMes" class="form-label">Mês</label>
+                            <select class="form-select" id="novoMes" required>
+                                <option value="">Selecione o mês</option>
+                                <option value="1">Janeiro</option>
+                                <option value="2">Fevereiro</option>
+                                <option value="3">Março</option>
+                                <option value="4">Abril</option>
+                                <option value="5">Maio</option>
+                                <option value="6">Junho</option>
+                                <option value="7">Julho</option>
+                                <option value="8">Agosto</option>
+                                <option value="9">Setembro</option>
+                                <option value="10">Outubro</option>
+                                <option value="11">Novembro</option>
+                                <option value="12">Dezembro</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="novoAno" class="form-label">Ano</label>
+                            <input type="number" class="form-control" id="novoAno" min="2020" max="2030" value="2024" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="novoValor" class="form-label">Valor Total</label>
+                            <input type="number" class="form-control" id="novoValor" step="0.01" placeholder="Digite o valor total pago" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="novoMetodo" class="form-label">Método de Pagamento</label>
+                            <select class="form-select" id="novoMetodo" required>
+                                <option value="">Selecione o método</option>
+                                <option value="PIX">PIX</option>
+                                <option value="Dinheiro">Dinheiro</option>
+                                <option value="Cartão">Cartão</option>
+                                <option value="Transferência">Transferência</option>
+                                <option value="Dinheiro/PIX">Dinheiro/PIX</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="novaDataPagamento" class="form-label">Data do Pagamento</label>
+                            <input type="date" class="form-control" id="novaDataPagamento" required>
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="checkAluguelAgua">
+                            <label class="form-check-label" for="checkAluguelAgua">
+                                Incluir valor da água no total
+                            </label>
+                        </div>
+                        <div class="alert alert-info">
+                            <small>
+                                <strong>Informação:</strong> O sistema calculará automaticamente o valor do aluguel + água (se marcado) 
+                                com base nos dados cadastrados do inquilino.
+                            </small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnRegistrarPagamento">Registrar Pagamento</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Editar Pagamento -->
     <div class="modal fade" id="modalEditarPagamento" tabindex="-1">
         <div class="modal-dialog">
@@ -361,6 +445,13 @@
                 localStorage.removeItem('adminUID');
                 window.location.href = 'admin-login.html';
             });
+
+            // Configurar data atual no campo de data
+            const dataAtual = new Date().toISOString().split('T')[0];
+            const dataPagamentoInput = document.getElementById('novaDataPagamento');
+            if (dataPagamentoInput) {
+                dataPagamentoInput.value = dataAtual;
+            }
 
             // Configurar filtros dos pagamentos efetuados
             const filtroMes = document.getElementById('filtroMes');
