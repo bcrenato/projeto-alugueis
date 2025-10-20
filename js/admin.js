@@ -768,32 +768,19 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     window.excluirInquilino = function(uid) {
-        if (confirm('Tem certeza que deseja excluir este inquilino?\n\nEsta ação não pode ser desfeita!')) {
-            auth.getUser(uid)
-                .then((userRecord) => {
-                    return auth.deleteUser(uid);
-                })
-                .then(() => {
-                    return database.ref('inquilinos/' + uid).remove();
-                })
-                .then(() => {
-                    alert('Inquilino excluído com sucesso!');
-                    carregarInquilinos();
-                })
-                .catch((error) => {
-                    console.error('Erro ao excluir inquilino:', error);
-                    
-                    database.ref('inquilinos/' + uid).remove()
-                        .then(() => {
-                            alert('Inquilino excluído do sistema, mas pode restar o usuário no login.');
-                            carregarInquilinos();
-                        })
-                        .catch((error2) => {
-                            alert('Erro ao excluir inquilino completamente.');
-                        });
-                });
-        }
-    };
+    if (confirm('Tem certeza que deseja excluir este inquilino?\n\nEsta ação não pode ser desfeita!\n\nO inquilino será removido do sistema, mas a conta de login pode permanecer no Authentication.')) {
+        // Apenas remover do Database (solução mais simples e segura)
+        database.ref('inquilinos/' + uid).remove()
+            .then(() => {
+                alert('Inquilino excluído com sucesso do sistema!');
+                carregarInquilinos();
+            })
+            .catch((error) => {
+                console.error('Erro ao excluir inquilino:', error);
+                alert('Erro ao excluir inquilino: ' + error.message);
+            });
+    }
+};
 
     // === EVENT LISTENERS para as abas ===
     const tabs = document.querySelectorAll('#adminTabs button[data-bs-toggle="tab"]');
