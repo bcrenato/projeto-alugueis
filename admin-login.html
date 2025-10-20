@@ -71,6 +71,8 @@
                     // É admin - salvar no localStorage e redirecionar
                     localStorage.setItem('adminAuth', 'true');
                     localStorage.setItem('adminUID', user.uid);
+                    localStorage.setItem('adminEmail', email);
+                    localStorage.setItem('adminPassword', password); // <-- ESSA LINHA É NOVA
                     
                     messageDiv.innerHTML = '<div class="alert alert-success">Login realizado com sucesso!</div>';
                     setTimeout(() => {
