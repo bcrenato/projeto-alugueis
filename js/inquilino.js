@@ -1,4 +1,4 @@
-// inquilino.js - Versão COMPLETA com Sistema de Contas Flexíveis
+// inquilino.js - Versão COMPLETA com Sistema de Contas Flexíveis e Pagamento Separado
 console.log('=== INICIANDO SISTEMA PIX COM CONTAS FLEXÍVEIS ===');
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -22,7 +22,8 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let dadosInquilino = null;
     let metodoPagamentoSelecionado = '';
-    let modalPagamento, modalPix;
+    let tipoPagamentoAtual = 'aluguel'; // 'aluguel', 'agua_separada', 'luz_separada'
+    let modalPagamento, modalPix, modalPagamentoContaSeparada;
     let dadosCarregados = false;
 
     // Configurações PIX - Dados reais do beneficiário
@@ -37,6 +38,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             modalPagamento = new bootstrap.Modal(document.getElementById('modalPagamento'));
             modalPix = new bootstrap.Modal(document.getElementById('modalPix'));
+            modalPagamentoContaSeparada = new bootstrap.Modal(document.getElementById('modalPagamentoContaSeparada'));
             console.log('✅ Modais inicializados');
             
             // Configurar event listeners
@@ -65,16 +67,55 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Configurar event listeners
     function configurarEventListeners() {
-        // Abrir modal de pagamento
+        // Abrir modal de pagamento principal (aluguel)
         document.getElementById('btnAbrirModalPagamento').addEventListener('click', function() {
-            console.log('🔄 Abrindo modal de pagamento');
+            console.log('🔄 Abrindo modal de pagamento de aluguel');
             if (!verificarDadosCarregados()) return;
+            tipoPagamentoAtual = 'aluguel';
             modalPagamento.show();
         });
         
-        // Botão PIX no modal principal
+        // Botões para pagamento de contas separadas
+        document.getElementById('btnPagarAguaSeparada').addEventListener('click', function() {
+            console.log('💧 Abrindo modal para pagar água separada');
+            if (!verificarDadosCarregados()) return;
+            
+            // Verificar se a água está configurada como separada
+            const aguaSeparada = !(dadosInquilino.contas?.agua?.pagaJunto !== false);
+            if (!aguaSeparada) {
+                alert('⚠️ A água está configurada para pagamento junto com o aluguel.\n\nUse a opção "Pagar Aluguel" para pagar todas as contas juntas.');
+                return;
+            }
+            
+            tipoPagamentoAtual = 'agua_separada';
+            abrirModalContaSeparada('Água', dadosInquilino.contas?.agua?.valor || dadosInquilino.agua || 0);
+        });
+        
+        document.getElementById('btnPagarLuzSeparada').addEventListener('click', function() {
+            console.log('💡 Abrindo modal para pagar luz separada');
+            if (!verificarDadosCarregados()) return;
+            
+            // Verificar se a luz está configurada como separada
+            const luzSeparada = !(dadosInquilino.contas?.luz?.pagaJunto === true);
+            const valorLuz = dadosInquilino.contas?.luz?.valor || 0;
+            
+            if (!luzSeparada) {
+                alert('⚠️ A luz está configurada para pagamento junto com o aluguel.\n\nUse a opção "Pagar Aluguel" para pagar todas as contas juntas.');
+                return;
+            }
+            
+            if (valorLuz <= 0) {
+                alert('ℹ️ Não há valor de luz configurado para pagamento.');
+                return;
+            }
+            
+            tipoPagamentoAtual = 'luz_separada';
+            abrirModalContaSeparada('Luz', valorLuz);
+        });
+        
+        // Botões PIX no modal principal
         document.getElementById('btnPix').addEventListener('click', function() {
-            console.log('🎯 PIX selecionado');
+            console.log('🎯 PIX selecionado para aluguel');
             if (!verificarDadosCarregados()) return;
             metodoPagamentoSelecionado = 'pix';
             document.getElementById('btnPix').classList.add('active');
@@ -87,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Botão Dinheiro no modal principal
         document.getElementById('btnDinheiro').addEventListener('click', function() {
-            console.log('💵 Dinheiro selecionado');
+            console.log('💵 Dinheiro selecionado para aluguel');
             if (!verificarDadosCarregados()) return;
             metodoPagamentoSelecionado = 'dinheiro';
             document.getElementById('btnDinheiro').classList.add('active');
@@ -98,9 +139,39 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('btnContinuarPagamento').textContent = 'Confirmar Pagamento';
         });
         
+        // Botões PIX no modal de conta separada
+        document.querySelectorAll('.btn-pix-conta').forEach(btn => {
+            btn.addEventListener('click', function() {
+                console.log('🎯 PIX selecionado para conta separada');
+                if (!verificarDadosCarregados()) return;
+                metodoPagamentoSelecionado = 'pix';
+                document.querySelectorAll('.btn-pix-conta').forEach(b => b.classList.add('active'));
+                document.querySelectorAll('.btn-dinheiro-conta').forEach(b => b.classList.remove('active'));
+                document.getElementById('conteudoPixConta').classList.remove('d-none');
+                document.getElementById('conteudoDinheiroConta').classList.add('d-none');
+                document.getElementById('btnContinuarPagamentoConta').disabled = false;
+                document.getElementById('btnContinuarPagamentoConta').textContent = 'Continuar com PIX';
+            });
+        });
+        
+        // Botões Dinheiro no modal de conta separada
+        document.querySelectorAll('.btn-dinheiro-conta').forEach(btn => {
+            btn.addEventListener('click', function() {
+                console.log('💵 Dinheiro selecionado para conta separada');
+                if (!verificarDadosCarregados()) return;
+                metodoPagamentoSelecionado = 'dinheiro';
+                document.querySelectorAll('.btn-dinheiro-conta').forEach(b => b.classList.add('active'));
+                document.querySelectorAll('.btn-pix-conta').forEach(b => b.classList.remove('active'));
+                document.getElementById('conteudoDinheiroConta').classList.remove('d-none');
+                document.getElementById('conteudoPixConta').classList.add('d-none');
+                document.getElementById('btnContinuarPagamentoConta').disabled = false;
+                document.getElementById('btnContinuarPagamentoConta').textContent = 'Confirmar Pagamento';
+            });
+        });
+        
         // Botão Continuar no modal principal
         document.getElementById('btnContinuarPagamento').addEventListener('click', function() {
-            console.log('🔄 Continuando pagamento:', metodoPagamentoSelecionado);
+            console.log('🔄 Continuando pagamento:', metodoPagamentoSelecionado, 'Tipo:', tipoPagamentoAtual);
             
             if (!verificarDadosCarregados()) return;
             
@@ -113,6 +184,24 @@ document.addEventListener('DOMContentLoaded', function() {
             } else if (metodoPagamentoSelecionado === 'dinheiro') {
                 registrarPagamento('dinheiro');
                 modalPagamento.hide();
+            }
+        });
+        
+        // Botão Continuar no modal de conta separada
+        document.getElementById('btnContinuarPagamentoConta').addEventListener('click', function() {
+            console.log('🔄 Continuando pagamento de conta separada:', metodoPagamentoSelecionado, 'Tipo:', tipoPagamentoAtual);
+            
+            if (!verificarDadosCarregados()) return;
+            
+            if (metodoPagamentoSelecionado === 'pix') {
+                modalPagamentoContaSeparada.hide();
+                setTimeout(() => {
+                    gerarPixCompleto();
+                    modalPix.show();
+                }, 300);
+            } else if (metodoPagamentoSelecionado === 'dinheiro') {
+                registrarPagamento('dinheiro');
+                modalPagamentoContaSeparada.hide();
             }
         });
         
@@ -161,12 +250,45 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('btnContinuarPagamento').disabled = true;
         });
 
+        // Resetar modal de conta separada quando fechado
+        document.getElementById('modalPagamentoContaSeparada').addEventListener('hidden.bs.modal', function () {
+            console.log('🔄 Modal conta separada fechado, resetando...');
+            metodoPagamentoSelecionado = '';
+            document.querySelectorAll('.btn-pix-conta').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.btn-dinheiro-conta').forEach(b => b.classList.remove('active'));
+            document.getElementById('conteudoPixConta').classList.add('d-none');
+            document.getElementById('conteudoDinheiroConta').classList.add('d-none');
+            document.getElementById('btnContinuarPagamentoConta').disabled = true;
+        });
+
         // Logout
         document.getElementById('btnLogout').addEventListener('click', function() {
             auth.signOut().then(() => {
                 window.location.href = 'index.html';
             });
         });
+    }
+    
+    // === FUNÇÃO: Abrir modal para conta separada ===
+    function abrirModalContaSeparada(tipoConta, valor) {
+        console.log(`📋 Abrindo modal para ${tipoConta} - R$ ${valor.toFixed(2)}`);
+        
+        // Configurar o modal
+        document.getElementById('tituloModalContaSeparada').textContent = `Pagamento de ${tipoConta} Separada`;
+        document.getElementById('infoContaSeparada').textContent = `Pagamento de ${tipoConta} separada - Valor: R$ ${valor.toFixed(2)}`;
+        document.getElementById('valorPixConta').textContent = valor.toFixed(2);
+        
+        // Resetar estado do modal
+        metodoPagamentoSelecionado = '';
+        document.querySelectorAll('.btn-pix-conta').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.btn-dinheiro-conta').forEach(b => b.classList.remove('active'));
+        document.getElementById('conteudoPixConta').classList.add('d-none');
+        document.getElementById('conteudoDinheiroConta').classList.add('d-none');
+        document.getElementById('btnContinuarPagamentoConta').disabled = true;
+        document.getElementById('btnContinuarPagamentoConta').textContent = 'Continuar';
+        
+        // Abrir modal
+        modalPagamentoContaSeparada.show();
     }
     
     // Verificar se os dados foram carregados
@@ -202,7 +324,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // === FUNÇÃO: Calcular total para PIX ===
+    // === FUNÇÃO: Calcular total para PIX (aluguel + contas juntas) ===
     function calcularTotalPix() {
         if (!dadosInquilino) return 0;
         
@@ -222,6 +344,40 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         return total;
+    }
+    
+    // === FUNÇÃO: Obter valor para pagamento atual ===
+    function obterValorPagamentoAtual() {
+        switch (tipoPagamentoAtual) {
+            case 'aluguel':
+                return calcularTotalPix();
+                
+            case 'agua_separada':
+                return dadosInquilino.contas?.agua?.valor || dadosInquilino.agua || 0;
+                
+            case 'luz_separada':
+                return dadosInquilino.contas?.luz?.valor || 0;
+                
+            default:
+                return 0;
+        }
+    }
+    
+    // === FUNÇÃO: Obter descrição do tipo de pagamento ===
+    function obterDescricaoPagamento() {
+        switch (tipoPagamentoAtual) {
+            case 'aluguel':
+                return 'Aluguel + Contas Juntas';
+                
+            case 'agua_separada':
+                return 'Água Separada';
+                
+            case 'luz_separada':
+                return 'Luz Separada';
+                
+            default:
+                return 'Pagamento';
+        }
     }
     
     // === FUNÇÃO: Exibir dados do inquilino na interface ===
@@ -291,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Carregar histórico de pagamentos
     function carregarHistoricoPagamentos(uid) {
         const corpoTabela = document.getElementById('corpoTabelaPagamentos');
-        corpoTabela.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Carregando...</td></tr>';
+        corpoTabela.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Carregando...</td></tr>';
         
         database.ref('pagamentos/' + uid).orderByChild('dataSolicitacao').once('value')
             .then((snapshot) => {
@@ -310,7 +466,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     pagamentos.sort((a, b) => new Date(b.dataSolicitacao) - new Date(a.dataSolicitacao));
                     
                     if (pagamentos.length === 0) {
-                        corpoTabela.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum pagamento registrado</td></tr>';
+                        corpoTabela.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Nenhum pagamento registrado</td></tr>';
                         return;
                     }
                     
@@ -335,7 +491,18 @@ document.addEventListener('DOMContentLoaded', function() {
                             ? new Date(pagamento.dataPagamento).toLocaleDateString('pt-BR')
                             : '-';
                         
+                        // Determinar tipo de pagamento para exibição
+                        let tipoPagamento = 'Aluguel';
+                        if (pagamento.tipo === 'agua_separada') {
+                            tipoPagamento = 'Água Separada';
+                        } else if (pagamento.tipo === 'luz_separada') {
+                            tipoPagamento = 'Luz Separada';
+                        } else if (pagamento.tipo === 'aluguel_com_contas') {
+                            tipoPagamento = 'Aluguel Completo';
+                        }
+                        
                         linha.innerHTML = `
+                            <td>${tipoPagamento}</td>
                             <td>${pagamento.mes}/${pagamento.ano}</td>
                             <td>R$ ${(pagamento.valor || 0).toFixed(2)}</td>
                             <td>${dataPagamento}</td>
@@ -346,19 +513,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         corpoTabela.appendChild(linha);
                     });
                 } else {
-                    corpoTabela.innerHTML = '<tr><td colspan="5" class="text-center text-muted">Nenhum pagamento registrado</td></tr>';
+                    corpoTabela.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Nenhum pagamento registrado</td></tr>';
                 }
             })
             .catch((error) => {
                 console.error('❌ Erro ao carregar pagamentos:', error);
-                corpoTabela.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Erro ao carregar pagamentos</td></tr>';
+                corpoTabela.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Erro ao carregar pagamentos</td></tr>';
             });
     }
     
     // === FUNÇÕES PIX CORRIGIDAS ===
     
     function gerarPixCompleto() {
-        console.log('🎯 Gerando PIX completo...');
+        console.log('🎯 Gerando PIX completo para:', tipoPagamentoAtual);
         
         // Verificação robusta dos dados
         if (!dadosCarregados || !dadosInquilino) {
@@ -373,16 +540,30 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const total = calcularTotalPix();
+        const total = obterValorPagamentoAtual();
         const data = new Date();
         const mes = data.toLocaleString('pt-BR', { month: 'long' });
         const ano = data.getFullYear();
         const primeiroNome = dadosInquilino.nome.split(' ')[0];
+        const tipoDescricao = obterDescricaoPagamento();
         
         // IDENTIFICADOR CURTO - máximo 15 caracteres
-        const identificador = `ALUGUEL_${primeiroNome.substring(0, 10)}_${mes.substring(0, 3)}${ano.toString().slice(-2)}`.toUpperCase();
+        let identificador = '';
+        
+        switch (tipoPagamentoAtual) {
+            case 'aluguel':
+                identificador = `ALUGUEL_${primeiroNome.substring(0, 8)}_${mes.substring(0, 3)}${ano.toString().slice(-2)}`.toUpperCase();
+                break;
+            case 'agua_separada':
+                identificador = `AGUA_${primeiroNome.substring(0, 8)}_${mes.substring(0, 3)}${ano.toString().slice(-2)}`.toUpperCase();
+                break;
+            case 'luz_separada':
+                identificador = `LUZ_${primeiroNome.substring(0, 8)}_${mes.substring(0, 3)}${ano.toString().slice(-2)}`.toUpperCase();
+                break;
+        }
         
         console.log('📊 Dados PIX:', { 
+            tipo: tipoPagamentoAtual,
             total, 
             identificador, 
             primeiroNome,
@@ -391,6 +572,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Exibir informações no modal
         document.getElementById('valorPixModal').textContent = total.toFixed(2);
+        document.getElementById('tipoPixModal').textContent = tipoDescricao;
         document.getElementById('identificacaoPix').textContent = identificador;
         document.getElementById('dataPix').textContent = data.toLocaleDateString('pt-BR');
         
@@ -517,12 +699,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function registrarPagamento(metodo) {
-        console.log('💾 Registrando pagamento:', metodo);
+        console.log('💾 Registrando pagamento:', metodo, 'Tipo:', tipoPagamentoAtual);
         
         if (!verificarDadosCarregados()) return;
         
         const data = new Date();
-        const total = calcularTotalPix();
+        const total = obterValorPagamentoAtual();
         
         const pagamento = {
             mes: data.getMonth() + 1,
@@ -531,16 +713,31 @@ document.addEventListener('DOMContentLoaded', function() {
             metodo: metodo,
             status: 'pendente',
             dataSolicitacao: new Date().toISOString(),
-            tipo: 'aluguel_com_contas' // Novo campo para identificar tipo de pagamento
+            tipo: tipoPagamentoAtual
         };
         
         const uid = auth.currentUser.uid;
         database.ref('pagamentos/' + uid).push(pagamento)
             .then(() => {
                 let mensagem = '✅ Pagamento solicitado com sucesso!\n\nAguarde a confirmação do administrador.';
+                
                 if (metodo === 'pix') {
                     mensagem += '\n\n💡 Não esqueça de realizar a transferência PIX.';
                 }
+                
+                // Mensagem específica para o tipo de pagamento
+                switch (tipoPagamentoAtual) {
+                    case 'aluguel':
+                        mensagem += '\n\n🏠 Pagamento: Aluguel + contas juntas';
+                        break;
+                    case 'agua_separada':
+                        mensagem += '\n\n💧 Pagamento: Água separada';
+                        break;
+                    case 'luz_separada':
+                        mensagem += '\n\n💡 Pagamento: Luz separada';
+                        break;
+                }
+                
                 alert(mensagem);
                 carregarHistoricoPagamentos(uid);
             })
@@ -552,5 +749,5 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Iniciar o sistema
     inicializarSistema();
-    console.log('✅ Sistema PIX com contas flexíveis inicializado!');
+    console.log('✅ Sistema PIX com contas flexíveis e pagamento separado inicializado!');
 });
