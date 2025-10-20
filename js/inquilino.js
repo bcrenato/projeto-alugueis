@@ -1,5 +1,5 @@
-// inquilino.js - Versão COMPLETA Corrigida
-console.log('=== INICIANDO SISTEMA PIX ===');
+// inquilino.js - Versão COMPLETA com Sistema de Contas Flexíveis
+console.log('=== INICIANDO SISTEMA PIX COM CONTAS FLEXÍVEIS ===');
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ DOM Carregado');
@@ -202,7 +202,29 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // Exibir dados do inquilino na interface
+    // === FUNÇÃO: Calcular total para PIX ===
+    function calcularTotalPix() {
+        if (!dadosInquilino) return 0;
+        
+        let total = dadosInquilino.aluguel || 0;
+        
+        // Adicionar contas que pagam junto
+        if (dadosInquilino.contas) {
+            if (dadosInquilino.contas.agua?.pagaJunto !== false) {
+                total += dadosInquilino.contas.agua?.valor || 0;
+            }
+            if (dadosInquilino.contas.luz?.pagaJunto === true) {
+                total += dadosInquilino.contas.luz?.valor || 0;
+            }
+        } else {
+            // Compatibilidade com dados antigos
+            total += dadosInquilino.agua || 0;
+        }
+        
+        return total;
+    }
+    
+    // === FUNÇÃO: Exibir dados do inquilino na interface ===
     function exibirDadosInquilino() {
         try {
             if (!dadosInquilino) {
@@ -213,13 +235,43 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('nomeInquilino').textContent = dadosInquilino.nome || 'Não informado';
             document.getElementById('enderecoInquilino').textContent = `Rua João Pessoa, 2020 - ${formatarCasa(dadosInquilino.casa)}`;
             document.getElementById('valorAluguel').textContent = (dadosInquilino.aluguel || 0).toFixed(2);
-            document.getElementById('valorAgua').textContent = (dadosInquilino.agua || 0).toFixed(2);
             
-            const total = (dadosInquilino.aluguel || 0) + (dadosInquilino.agua || 0);
-            document.getElementById('valorTotal').textContent = total.toFixed(2);
-            document.getElementById('valorPixBasico').textContent = total.toFixed(2);
+            // Processar contas (compatibilidade com dados antigos e novos)
+            let valorAgua = 0;
+            let valorLuz = 0;
+            let aguaJunto = true;
+            let luzJunto = false;
             
-            console.log('✅ Dados exibidos na interface');
+            if (dadosInquilino.contas) {
+                // Nova estrutura com contas separadas
+                valorAgua = dadosInquilino.contas.agua?.valor || 0;
+                valorLuz = dadosInquilino.contas.luz?.valor || 0;
+                aguaJunto = dadosInquilino.contas.agua?.pagaJunto !== false;
+                luzJunto = dadosInquilino.contas.luz?.pagaJunto === true;
+            } else {
+                // Estrutura antiga (apenas água)
+                valorAgua = dadosInquilino.agua || 0;
+            }
+            
+            // Exibir valores na interface
+            document.getElementById('valorAgua').textContent = valorAgua.toFixed(2);
+            document.getElementById('valorLuz').textContent = valorLuz.toFixed(2);
+            
+            // Calcular total para PIX (apenas contas que pagam junto)
+            const totalPix = calcularTotalPix();
+            
+            document.getElementById('valorTotal').textContent = totalPix.toFixed(2);
+            document.getElementById('valorPixBasico').textContent = totalPix.toFixed(2);
+            
+            console.log('✅ Dados exibidos na interface', { 
+                aluguel: dadosInquilino.aluguel,
+                agua: valorAgua, 
+                luz: valorLuz,
+                aguaJunto: aguaJunto,
+                luzJunto: luzJunto,
+                totalPix: totalPix
+            });
+            
         } catch (error) {
             console.error('❌ Erro ao exibir dados:', error);
         }
@@ -321,7 +373,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        const total = (dadosInquilino.aluguel || 0) + (dadosInquilino.agua || 0);
+        const total = calcularTotalPix();
         const data = new Date();
         const mes = data.toLocaleString('pt-BR', { month: 'long' });
         const ano = data.getFullYear();
@@ -400,50 +452,47 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // FUNÇÃO CORRIGIDA PARA GERAR PIX VÁLIDO
-    // FUNÇÃO SUPER SIMPLIFICADA QUE FUNCIONA
-function gerarPayloadPixCorreto(valor, identificador) {
-    // Configurações PIX fixas
-    const CONFIG_PIX = {
-        chave: "02319858784", // sua chave PIX
-        nome: "Renato B de Carvalho",
-        cidade: "Nilopolis"
-    };
+    function gerarPayloadPixCorreto(valor, identificador) {
+        // Configurações PIX fixas
+        const CONFIG_PIX = {
+            chave: "02319858784", // sua chave PIX
+            nome: "Renato B de Carvalho",
+            cidade: "Nilopolis"
+        };
 
-    // Valor formatado (ex: 850.00)
-    const valorFormatado = valor.toFixed(2);
+        // Valor formatado (ex: 850.00)
+        const valorFormatado = valor.toFixed(2);
 
-    // Garante que o TXID (identificador) tenha no máximo 25 caracteres
-    const txid = (identificador || "SEMID")
-        .replace(/[^A-Z0-9]/gi, '') // remove caracteres inválidos
-        .substring(0, 25);
+        // Garante que o TXID (identificador) tenha no máximo 25 caracteres
+        const txid = (identificador || "SEMID")
+            .replace(/[^A-Z0-9]/gi, '') // remove caracteres inválidos
+            .substring(0, 25);
 
-    // === Montagem dos campos ===
-    const payload =
-        '000201' +                 // Início
-        '010212' +                 // QR estático
-        '26330014BR.GOV.BCB.PIX' + // Domínio oficial do BACEN
-        '0111' + CONFIG_PIX.chave + // 01 = chave, 11 = tamanho, valor = chave
-        '52040000' +               // Categoria
-        '5303986' +                // Moeda BRL
-        '54' + String(valorFormatado.length).padStart(2, '0') + valorFormatado + // Valor
-        '5802BR' +                 // País
-        '59' + String(CONFIG_PIX.nome.length).padStart(2, '0') + CONFIG_PIX.nome + // Nome recebedor
-        '60' + String(CONFIG_PIX.cidade.length).padStart(2, '0') + CONFIG_PIX.cidade; // Cidade
+        // === Montagem dos campos ===
+        const payload =
+            '000201' +                 // Início
+            '010212' +                 // QR estático
+            '26330014BR.GOV.BCB.PIX' + // Domínio oficial do BACEN
+            '0111' + CONFIG_PIX.chave + // 01 = chave, 11 = tamanho, valor = chave
+            '52040000' +               // Categoria
+            '5303986' +                // Moeda BRL
+            '54' + String(valorFormatado.length).padStart(2, '0') + valorFormatado + // Valor
+            '5802BR' +                 // País
+            '59' + String(CONFIG_PIX.nome.length).padStart(2, '0') + CONFIG_PIX.nome + // Nome recebedor
+            '60' + String(CONFIG_PIX.cidade.length).padStart(2, '0') + CONFIG_PIX.cidade; // Cidade
 
-    // === Campo adicional (TXID dinâmico) ===
-    const campoAdicional = '05' + String(txid.length).padStart(2, '0') + txid;
-    const campo62 = '62' + String(campoAdicional.length).padStart(2, '0') + campoAdicional;
+        // === Campo adicional (TXID dinâmico) ===
+        const campoAdicional = '05' + String(txid.length).padStart(2, '0') + txid;
+        const campo62 = '62' + String(campoAdicional.length).padStart(2, '0') + campoAdicional;
 
-    // === Montar payload completo antes do CRC ===
-    const payloadCompleto = payload + campo62 + '6304';
+        // === Montar payload completo antes do CRC ===
+        const payloadCompleto = payload + campo62 + '6304';
 
-    // === Calcular CRC16 ===
-    const crc = calcularCRC16(payloadCompleto);
+        // === Calcular CRC16 ===
+        const crc = calcularCRC16(payloadCompleto);
 
-    return payloadCompleto + crc;
-}
-
-
+        return payloadCompleto + crc;
+    }
 
     // FUNÇÃO CRC16 CORRIGIDA E TESTADA
     function calcularCRC16(payload) {
@@ -473,13 +522,16 @@ function gerarPayloadPixCorreto(valor, identificador) {
         if (!verificarDadosCarregados()) return;
         
         const data = new Date();
+        const total = calcularTotalPix();
+        
         const pagamento = {
             mes: data.getMonth() + 1,
             ano: data.getFullYear(),
-            valor: (dadosInquilino.aluguel || 0) + (dadosInquilino.agua || 0),
+            valor: total,
             metodo: metodo,
             status: 'pendente',
-            dataSolicitacao: new Date().toISOString()
+            dataSolicitacao: new Date().toISOString(),
+            tipo: 'aluguel_com_contas' // Novo campo para identificar tipo de pagamento
         };
         
         const uid = auth.currentUser.uid;
@@ -500,5 +552,5 @@ function gerarPayloadPixCorreto(valor, identificador) {
 
     // Iniciar o sistema
     inicializarSistema();
-    console.log('✅ Sistema PIX inicializado!');
+    console.log('✅ Sistema PIX com contas flexíveis inicializado!');
 });
