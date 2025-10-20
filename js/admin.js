@@ -18,13 +18,36 @@ document.addEventListener('DOMContentLoaded', function() {
                         const inquilino = childSnapshot.val();
                         const uid = childSnapshot.key;
                         
+                        // Processar dados das contas (compatibilidade com dados antigos)
+                        let valorAgua = 0;
+                        let valorLuz = 0;
+                        let contasJuntas = [];
+                        
+                        if (inquilino.contas) {
+                            valorAgua = inquilino.contas.agua?.valor || 0;
+                            valorLuz = inquilino.contas.luz?.valor || 0;
+                            
+                            if (inquilino.contas.agua?.pagaJunto !== false) {
+                                contasJuntas.push('Água');
+                            }
+                            if (inquilino.contas.luz?.pagaJunto === true) {
+                                contasJuntas.push('Luz');
+                            }
+                        } else {
+                            // Dados antigos
+                            valorAgua = inquilino.agua || 0;
+                            contasJuntas.push('Água');
+                        }
+                        
                         const linha = document.createElement('tr');
                         linha.innerHTML = `
                             <td>${inquilino.nome}</td>
                             <td>${inquilino.cpf}</td>
                             <td>${inquilino.casa}</td>
                             <td>R$ ${inquilino.aluguel.toFixed(2)}</td>
-                            <td>R$ ${inquilino.agua.toFixed(2)}</td>
+                            <td>R$ ${valorAgua.toFixed(2)}</td>
+                            <td>R$ ${valorLuz.toFixed(2)}</td>
+                            <td>${contasJuntas.join(', ') || 'Nenhuma'}</td>
                             <td>
                                 <button class="btn btn-sm btn-warning" onclick="editarInquilino('${uid}')">Editar</button>
                                 <button class="btn btn-sm btn-danger" onclick="excluirInquilino('${uid}')">Excluir</button>
@@ -45,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
     
-    // === NOVA FUNÇÃO: Carregar inquilinos no select de pagamentos ===
+    // === FUNÇÃO: Carregar inquilinos no select de pagamentos ===
     function carregarInquilinosParaPagamento() {
         const selectInquilino = document.getElementById('selectInquilinoPagamento');
         if (!selectInquilino) return;
@@ -59,11 +82,31 @@ document.addEventListener('DOMContentLoaded', function() {
                         const inquilino = childSnapshot.val();
                         const uid = childSnapshot.key;
                         
+                        // Calcular total para PIX (contas que pagam junto)
+                        let totalPix = inquilino.aluguel;
+                        let descricaoContas = [];
+                        
+                        if (inquilino.contas) {
+                            if (inquilino.contas.agua?.pagaJunto !== false) {
+                                totalPix += inquilino.contas.agua?.valor || 0;
+                                descricaoContas.push('água');
+                            }
+                            if (inquilino.contas.luz?.pagaJunto === true) {
+                                totalPix += inquilino.contas.luz?.valor || 0;
+                                descricaoContas.push('luz');
+                            }
+                        } else {
+                            // Dados antigos
+                            totalPix += inquilino.agua || 0;
+                            descricaoContas.push('água');
+                        }
+                        
                         const option = document.createElement('option');
                         option.value = uid;
-                        option.textContent = `${inquilino.nome} - ${inquilino.casa} (Aluguel: R$ ${inquilino.aluguel.toFixed(2)} + Água: R$ ${inquilino.agua.toFixed(2)})`;
+                        option.textContent = `${inquilino.nome} - ${inquilino.casa} (PIX: R$ ${totalPix.toFixed(2)})`;
                         option.setAttribute('data-aluguel', inquilino.aluguel);
-                        option.setAttribute('data-agua', inquilino.agua);
+                        option.setAttribute('data-agua', inquilino.contas?.agua?.valor || inquilino.agua || 0);
+                        option.setAttribute('data-luz', inquilino.contas?.luz?.valor || 0);
                         selectInquilino.appendChild(option);
                     });
                 }
@@ -73,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    // === NOVA FUNÇÃO: Calcular valor automaticamente ===
+    // === FUNÇÃO: Calcular valor automaticamente ===
     function calcularValorPagamento() {
         const selectInquilino = document.getElementById('selectInquilinoPagamento');
         const checkAgua = document.getElementById('checkAluguelAgua');
@@ -93,7 +136,7 @@ document.addEventListener('DOMContentLoaded', function() {
         inputValor.value = valorTotal.toFixed(2);
     }
     
-    // === NOVA FUNÇÃO: Atualizar filtro de inquilinos ===
+    // === FUNÇÃO: Atualizar filtro de inquilinos ===
     function atualizarFiltroInquilinos(snapshot) {
         const selectInquilino = document.getElementById('filtroInquilino');
         if (!selectInquilino) return;
@@ -445,7 +488,20 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('cpf').value = inquilino.cpf;
                     document.getElementById('casa').value = inquilino.casa;
                     document.getElementById('aluguel').value = inquilino.aluguel;
-                    document.getElementById('agua').value = inquilino.agua;
+                    
+                    // Preencher dados das contas
+                    if (inquilino.contas) {
+                        document.getElementById('agua').value = inquilino.contas.agua?.valor || 0;
+                        document.getElementById('luz').value = inquilino.contas.luz?.valor || 0;
+                        document.getElementById('aguaJunto').checked = inquilino.contas.agua?.pagaJunto !== false;
+                        document.getElementById('luzJunto').checked = inquilino.contas.luz?.pagaJunto === true;
+                    } else {
+                        // Para compatibilidade com dados antigos
+                        document.getElementById('agua').value = inquilino.agua || 0;
+                        document.getElementById('luz').value = 0;
+                        document.getElementById('aguaJunto').checked = true;
+                        document.getElementById('luzJunto').checked = false;
+                    }
                     
                     // Alterar o título do modal e texto do botão
                     document.querySelector('#modalNovoInquilino .modal-title').textContent = 'Editar Inquilino';
@@ -465,7 +521,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     };
 
-    // === NOVA FUNÇÃO: Abrir modal de edição de pagamento ===
+    // === FUNÇÃO: Abrir modal de edição de pagamento ===
     window.editarPagamento = function(uid, idPagamento) {
         pagamentoEditando = { uid, idPagamento };
         
@@ -502,76 +558,101 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     };
     
-  // === FUNÇÃO: Salvar/Atualizar inquilino ===
- // === FUNÇÃO: Salvar/Atualizar inquilino ===
-document.getElementById('btnSalvarInquilino').addEventListener('click', async function () {
-    const nome = document.getElementById('nome').value;
-    const cpf = document.getElementById('cpf').value;
-    const senha = document.getElementById('senha').value;
-    const casa = document.getElementById('casa').value;
-    const aluguel = parseFloat(document.getElementById('aluguel').value);
-    const agua = parseFloat(document.getElementById('agua').value);
-
-    const adminEmail = localStorage.getItem('adminEmail');
-    const adminPassword = localStorage.getItem('adminPassword'); // você precisa salvar isso no login do admin
-
-    if (inquilinoEditando) {
-        // === MODO EDIÇÃO ===
-        const dadosAtualizados = { nome, cpf, casa, aluguel, agua };
-
-        database.ref('inquilinos/' + inquilinoEditando).update(dadosAtualizados)
-            .then(() => {
-                alert('Inquilino atualizado com sucesso!');
-                fecharModalInquilino();
-                carregarInquilinos();
-            })
-            .catch((error) => {
-                console.error('Erro ao atualizar inquilino:', error);
-                alert('Erro ao atualizar inquilino. Verifique os dados e tente novamente.');
-            });
-
-    } else {
-        // === MODO NOVO ===
-        if (!senha) {
-            alert('Por favor, informe uma senha para o novo inquilino.');
-            return;
-        }
-
-        try {
-            // Guardar usuário atual (admin)
-            const adminUser = firebase.auth().currentUser;
-
-            // Criar novo usuário inquilino
-            const userCredential = await auth.createUserWithEmailAndPassword(`${cpf}@alugueis.com`, senha);
-            const uid = userCredential.user.uid;
-
-            const inquilino = { nome, cpf, casa, aluguel, agua };
-
-            // Reautenticar o admin após criação
-            if (adminEmail && adminPassword) {
-                await auth.signInWithEmailAndPassword(adminEmail, adminPassword);
-            } else {
-                console.warn("⚠️ Email e senha do admin não estão salvos. Adicione isso no login do admin.");
-                alert("Erro: não foi possível reautenticar o admin. Configure o salvamento da senha no login.");
+    // === FUNÇÃO: Salvar/Atualizar inquilino ===
+    document.getElementById('btnSalvarInquilino').addEventListener('click', function() {
+        const nome = document.getElementById('nome').value;
+        const cpf = document.getElementById('cpf').value;
+        const senha = document.getElementById('senha').value;
+        const casa = document.getElementById('casa').value;
+        const aluguel = parseFloat(document.getElementById('aluguel').value);
+        const agua = parseFloat(document.getElementById('agua').value);
+        const luz = parseFloat(document.getElementById('luz').value) || 0;
+        const aguaJunto = document.getElementById('aguaJunto').checked;
+        const luzJunto = document.getElementById('luzJunto').checked;
+        
+        if (inquilinoEditando) {
+            // MODO EDIÇÃO - Atualizar inquilino existente
+            const dadosAtualizados = {
+                nome: nome,
+                cpf: cpf,
+                casa: casa,
+                aluguel: aluguel,
+                contas: {
+                    agua: {
+                        valor: agua,
+                        pagaJunto: aguaJunto
+                    },
+                    luz: {
+                        valor: luz,
+                        pagaJunto: luzJunto
+                    }
+                }
+            };
+            
+            if (senha && senha.trim() !== '') {
+                auth.currentUser.updatePassword(senha)
+                    .then(() => {
+                        console.log('Senha atualizada com sucesso');
+                    })
+                    .catch((error) => {
+                        console.error('Erro ao atualizar senha:', error);
+                    });
+            }
+            
+            database.ref('inquilinos/' + inquilinoEditando).update(dadosAtualizados)
+                .then(() => {
+                    alert('Inquilino atualizado com sucesso!');
+                    fecharModalInquilino();
+                    carregarInquilinos();
+                })
+                .catch((error) => {
+                    console.error('Erro ao atualizar inquilino:', error);
+                    alert('Erro ao atualizar inquilino. Verifique os dados e tente novamente.');
+                });
+                
+        } else {
+            // MODO NOVO - Criar novo inquilino
+            if (!senha) {
+                alert('Por favor, informe uma senha para o novo inquilino.');
                 return;
             }
-
-            // Criar registro do inquilino no Realtime Database
-            await database.ref('inquilinos/' + uid).set(inquilino);
-
-            alert('Inquilino cadastrado com sucesso!');
-            fecharModalInquilino();
-            carregarInquilinos();
-
-        } catch (error) {
-            console.error('Erro ao cadastrar inquilino:', error);
-            alert('Erro ao cadastrar inquilino. Verifique os dados e tente novamente.\n\n' + error.message);
+            
+            auth.createUserWithEmailAndPassword(`${cpf}@alugueis.com`, senha)
+                .then((userCredential) => {
+                    const uid = userCredential.user.uid;
+                    
+                    const inquilino = {
+                        nome: nome,
+                        cpf: cpf,
+                        casa: casa,
+                        aluguel: aluguel,
+                        contas: {
+                            agua: {
+                                valor: agua,
+                                pagaJunto: aguaJunto
+                            },
+                            luz: {
+                                valor: luz,
+                                pagaJunto: luzJunto
+                            }
+                        }
+                    };
+                    
+                    return database.ref('inquilinos/' + uid).set(inquilino);
+                })
+                .then(() => {
+                    alert('Inquilino cadastrado com sucesso!');
+                    fecharModalInquilino();
+                    carregarInquilinos();
+                })
+                .catch((error) => {
+                    console.error('Erro ao cadastrar inquilino:', error);
+                    alert('Erro ao cadastrar inquilino. Verifique os dados e tente novamente.');
+                });
         }
-    }
-});
+    });
 
-
-    // === NOVA FUNÇÃO: Salvar edição de pagamento ===
+    // === FUNÇÃO: Salvar edição de pagamento ===
     document.getElementById('btnSalvarPagamento').addEventListener('click', function() {
         if (!pagamentoEditando) return;
         
@@ -606,7 +687,7 @@ document.getElementById('btnSalvarInquilino').addEventListener('click', async fu
             });
     });
 
-    // === NOVA FUNÇÃO: Registrar pagamento manual ===
+    // === FUNÇÃO: Registrar pagamento manual ===
     document.getElementById('btnRegistrarPagamento').addEventListener('click', function() {
         const uidInquilino = document.getElementById('selectInquilinoPagamento').value;
         const mes = document.getElementById('novoMes').value;
@@ -686,7 +767,7 @@ document.getElementById('btnSalvarInquilino').addEventListener('click', async fu
         inquilinoEditando = null;
     }
 
-    // === NOVA FUNÇÃO: Fechar modal de pagamento ===
+    // === FUNÇÃO: Fechar modal de pagamento ===
     function fecharModalPagamento() {
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarPagamento'));
         modal.hide();
@@ -748,7 +829,7 @@ document.getElementById('btnSalvarInquilino').addEventListener('click', async fu
             });
     };
 
-    // === NOVA FUNÇÃO: Excluir pagamento ===
+    // === FUNÇÃO: Excluir pagamento ===
     window.excluirPagamento = function(uid, idPagamento) {
         if (confirm('Tem certeza que deseja excluir este pagamento?\n\nEsta ação não pode ser desfeita!')) {
             database.ref(`pagamentos/${uid}/${idPagamento}`).remove()
@@ -764,19 +845,19 @@ document.getElementById('btnSalvarInquilino').addEventListener('click', async fu
     };
     
     window.excluirInquilino = function(uid) {
-    if (confirm('Tem certeza que deseja excluir este inquilino?\n\nEsta ação não pode ser desfeita!\n\nO inquilino será removido do sistema, mas a conta de login pode permanecer no Authentication.')) {
-        // Apenas remover do Database (solução mais simples e segura)
-        database.ref('inquilinos/' + uid).remove()
-            .then(() => {
-                alert('Inquilino excluído com sucesso do sistema!');
-                carregarInquilinos();
-            })
-            .catch((error) => {
-                console.error('Erro ao excluir inquilino:', error);
-                alert('Erro ao excluir inquilino: ' + error.message);
-            });
-    }
-};
+        if (confirm('Tem certeza que deseja excluir este inquilino?\n\nEsta ação não pode ser desfeita!\n\nO inquilino será removido do sistema, mas a conta de login pode permanecer no Authentication.')) {
+            // Apenas remover do Database (solução mais simples e segura)
+            database.ref('inquilinos/' + uid).remove()
+                .then(() => {
+                    alert('Inquilino excluído com sucesso do sistema!');
+                    carregarInquilinos();
+                })
+                .catch((error) => {
+                    console.error('Erro ao excluir inquilino:', error);
+                    alert('Erro ao excluir inquilino: ' + error.message);
+                });
+        }
+    };
 
     // === EVENT LISTENERS para as abas ===
     const tabs = document.querySelectorAll('#adminTabs button[data-bs-toggle="tab"]');
