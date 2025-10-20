@@ -504,77 +504,72 @@ document.addEventListener('DOMContentLoaded', function() {
     
   // === FUNÇÃO: Salvar/Atualizar inquilino ===
  // === FUNÇÃO: Salvar/Atualizar inquilino ===
-    document.getElementById('btnSalvarInquilino').addEventListener('click', function() {
+document.getElementById('btnSalvarInquilino').addEventListener('click', async function () {
     const nome = document.getElementById('nome').value;
     const cpf = document.getElementById('cpf').value;
     const senha = document.getElementById('senha').value;
     const casa = document.getElementById('casa').value;
     const aluguel = parseFloat(document.getElementById('aluguel').value);
     const agua = parseFloat(document.getElementById('agua').value);
-    
+
+    const adminEmail = localStorage.getItem('adminEmail');
+    const adminPassword = localStorage.getItem('adminPassword'); // você precisa salvar isso no login do admin
+
     if (inquilinoEditando) {
-            // MODO EDIÇÃO - Atualizar inquilino existente
-            const dadosAtualizados = {
-                nome: nome,
-                cpf: cpf,
-                casa: casa,
-                aluguel: aluguel,
-                agua: agua
-            };
-            
-            if (senha && senha.trim() !== '') {
-                auth.currentUser.updatePassword(senha)
-                    .then(() => {
-                        console.log('Senha atualizada com sucesso');
-                    })
-                    .catch((error) => {
-                        console.error('Erro ao atualizar senha:', error);
-                    });
-            }
-            
-            database.ref('inquilinos/' + inquilinoEditando).update(dadosAtualizados)
-                .then(() => {
-                    alert('Inquilino atualizado com sucesso!');
-                    fecharModalInquilino();
-                    carregarInquilinos();
-                })
-                .catch((error) => {
-                    console.error('Erro ao atualizar inquilino:', error);
-                    alert('Erro ao atualizar inquilino. Verifique os dados e tente novamente.');
-                });
-                
-        } else {
-            // MODO NOVO - Criar novo inquilino
-            if (!senha) {
-                alert('Por favor, informe uma senha para o novo inquilino.');
+        // === MODO EDIÇÃO ===
+        const dadosAtualizados = { nome, cpf, casa, aluguel, agua };
+
+        database.ref('inquilinos/' + inquilinoEditando).update(dadosAtualizados)
+            .then(() => {
+                alert('Inquilino atualizado com sucesso!');
+                fecharModalInquilino();
+                carregarInquilinos();
+            })
+            .catch((error) => {
+                console.error('Erro ao atualizar inquilino:', error);
+                alert('Erro ao atualizar inquilino. Verifique os dados e tente novamente.');
+            });
+
+    } else {
+        // === MODO NOVO ===
+        if (!senha) {
+            alert('Por favor, informe uma senha para o novo inquilino.');
+            return;
+        }
+
+        try {
+            // Guardar usuário atual (admin)
+            const adminUser = firebase.auth().currentUser;
+
+            // Criar novo usuário inquilino
+            const userCredential = await auth.createUserWithEmailAndPassword(`${cpf}@alugueis.com`, senha);
+            const uid = userCredential.user.uid;
+
+            const inquilino = { nome, cpf, casa, aluguel, agua };
+
+            // Reautenticar o admin após criação
+            if (adminEmail && adminPassword) {
+                await auth.signInWithEmailAndPassword(adminEmail, adminPassword);
+            } else {
+                console.warn("⚠️ Email e senha do admin não estão salvos. Adicione isso no login do admin.");
+                alert("Erro: não foi possível reautenticar o admin. Configure o salvamento da senha no login.");
                 return;
             }
-            
-            auth.createUserWithEmailAndPassword(`${cpf}@alugueis.com`, senha)
-                .then((userCredential) => {
-                    const uid = userCredential.user.uid;
-                    
-                    const inquilino = {
-                        nome: nome,
-                        cpf: cpf,
-                        casa: casa,
-                        aluguel: aluguel,
-                        agua: agua
-                    };
-                    
-                    return database.ref('inquilinos/' + uid).set(inquilino);
-                })
-                .then(() => {
-                    alert('Inquilino cadastrado com sucesso!');
-                    fecharModalInquilino();
-                    carregarInquilinos();
-                })
-                .catch((error) => {
-                    console.error('Erro ao cadastrar inquilino:', error);
-                    alert('Erro ao cadastrar inquilino. Verifique os dados e tente novamente.');
-                });
+
+            // Criar registro do inquilino no Realtime Database
+            await database.ref('inquilinos/' + uid).set(inquilino);
+
+            alert('Inquilino cadastrado com sucesso!');
+            fecharModalInquilino();
+            carregarInquilinos();
+
+        } catch (error) {
+            console.error('Erro ao cadastrar inquilino:', error);
+            alert('Erro ao cadastrar inquilino. Verifique os dados e tente novamente.\n\n' + error.message);
         }
-    });
+    }
+});
+
 
     // === NOVA FUNÇÃO: Salvar edição de pagamento ===
     document.getElementById('btnSalvarPagamento').addEventListener('click', function() {
