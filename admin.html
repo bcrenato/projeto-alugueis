@@ -89,6 +89,8 @@
                                         <th>Casa</th>
                                         <th>Aluguel</th>
                                         <th>Água</th>
+                                        <th>Luz</th>
+                                        <th>Contas Juntas</th>
                                         <th>Ações</th>
                                     </tr>
                                 </thead>
@@ -225,6 +227,24 @@
                         <div class="mb-3">
                             <label for="agua" class="form-label">Valor da Água</label>
                             <input type="number" class="form-control" id="agua" step="0.01" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="luz" class="form-label">Valor da Luz</label>
+                            <input type="number" class="form-control" id="luz" step="0.01" value="0">
+                        </div>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="aguaJunto" checked>
+                                <label class="form-check-label" for="aguaJunto">
+                                    Pagar água junto com aluguel
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="luzJunto">
+                                <label class="form-check-label" for="luzJunto">
+                                    Pagar luz junto com aluguel
+                                </label>
+                            </div>
                         </div>
                     </form>
                 </div>
@@ -391,13 +411,13 @@
             // Inicializar Firebase (use a mesma configuração do auth.js)
             const firebaseConfig = {
                 apiKey: "AIzaSyBoAk9yyUMEBrCFabZcKglTLo8uNj9bVLs",
-  authDomain: "appaluguel-7095f.firebaseapp.com",
-  databaseURL: "https://appaluguel-7095f-default-rtdb.firebaseio.com",
-  projectId: "appaluguel-7095f",
-  storageBucket: "appaluguel-7095f.firebasestorage.app",
-  messagingSenderId: "525901149755",
-  appId: "1:525901149755:web:bcb5d8786bc20d27cd0e1e"
-};
+                authDomain: "appaluguel-7095f.firebaseapp.com",
+                databaseURL: "https://appaluguel-7095f-default-rtdb.firebaseio.com",
+                projectId: "appaluguel-7095f",
+                storageBucket: "appaluguel-7095f.firebasestorage.app",
+                messagingSenderId: "525901149755",
+                appId: "1:525901149755:web:bcb5d8786bc20d27cd0e1e"
+            };
             
             if (!firebase.apps.length) {
                 firebase.initializeApp(firebaseConfig);
