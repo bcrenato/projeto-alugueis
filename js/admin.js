@@ -353,26 +353,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // === FUNÇÃO: Formatar data ===
-    function formatarData(dataString) {
-        if (!dataString) return 'N/A';
-        try {
-            const data = new Date(dataString);
-            return data.toLocaleDateString('pt-BR');
-        } catch (error) {
-            return dataString;
-        }
+    // === FUNÇÃO: Formatar data ===
+function formatarData(dataString) {
+    if (!dataString) return 'N/A';
+    try {
+        const data = new Date(dataString);
+        // Garantir que o fuso horário não afete a exibição
+        return data.toLocaleDateString('pt-BR', { 
+            timeZone: 'UTC',
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+    } catch (error) {
+        return dataString;
     }
+}
 
-    // === FUNÇÃO AUXILIAR: Formatar data para input date ===
-    function formatarDataParaInput(dataString) {
-        if (!dataString) return '';
-        try {
-            const data = new Date(dataString);
-            return data.toISOString().split('T')[0];
-        } catch (error) {
-            return '';
-        }
+// === FUNÇÃO AUXILIAR: Formatar data para input date ===
+function formatarDataParaInput(dataString) {
+    if (!dataString) return '';
+    try {
+        const data = new Date(dataString);
+        // Usar UTC para evitar problemas de fuso horário
+        const ano = data.getUTCFullYear();
+        const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
+        const dia = String(data.getUTCDate()).padStart(2, '0');
+        return `${ano}-${mes}-${dia}`;
+    } catch (error) {
+        return '';
     }
+}
     
     // === FUNÇÃO: Detectar e carregar anos existentes nos pagamentos ===
     function carregarAnosDisponiveis() {
@@ -661,107 +672,117 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // === FUNÇÃO: Salvar edição de pagamento ===
-    document.getElementById('btnSalvarPagamento').addEventListener('click', function() {
-        if (!pagamentoEditando) return;
-        
-        const mes = document.getElementById('editMes').value;
-        const ano = document.getElementById('editAno').value;
-        const valor = parseFloat(document.getElementById('editValor').value);
-        const metodo = document.getElementById('editMetodo').value;
-        const dataPagamento = document.getElementById('editDataPagamento').value;
-        
-        if (!mes || !ano || !valor) {
-            alert('Por favor, preencha todos os campos obrigatórios.');
-            return;
-        }
-        
-        const dadosAtualizados = {
-            mes: mes,
-            ano: ano,
-            valor: valor,
-            metodo: metodo,
-            dataPagamento: dataPagamento ? new Date(dataPagamento).toISOString() : null
-        };
-        
-        database.ref(`pagamentos/${pagamentoEditando.uid}/${pagamentoEditando.idPagamento}`).update(dadosAtualizados)
-            .then(() => {
-                alert('Pagamento atualizado com sucesso!');
-                fecharModalPagamento();
-                carregarPagamentosEfetuados();
-            })
-            .catch((error) => {
-                console.error('Erro ao atualizar pagamento:', error);
-                alert('Erro ao atualizar pagamento. Verifique os dados e tente novamente.');
-            });
-    });
+    // === FUNÇÃO: Salvar edição de pagamento ===
+document.getElementById('btnSalvarPagamento').addEventListener('click', function() {
+    if (!pagamentoEditando) return;
+    
+    const mes = document.getElementById('editMes').value;
+    const ano = document.getElementById('editAno').value;
+    const valor = parseFloat(document.getElementById('editValor').value);
+    const metodo = document.getElementById('editMetodo').value;
+    const dataPagamento = document.getElementById('editDataPagamento').value;
+    
+    if (!mes || !ano || !valor) {
+        alert('Por favor, preencha todos os campos obrigatórios.');
+        return;
+    }
+    
+    // CORREÇÃO: Manter a data exata sem conversão de fuso horário
+    let dataPagamentoFormatada = null;
+    if (dataPagamento) {
+        // Usar a data diretamente no formato YYYY-MM-DD
+        // Isso evita problemas de fuso horário
+        dataPagamentoFormatada = dataPagamento + 'T00:00:00.000Z';
+    }
+    
+    const dadosAtualizados = {
+        mes: mes,
+        ano: ano,
+        valor: valor,
+        metodo: metodo,
+        dataPagamento: dataPagamentoFormatada
+    };
+    
+    database.ref(`pagamentos/${pagamentoEditando.uid}/${pagamentoEditando.idPagamento}`).update(dadosAtualizados)
+        .then(() => {
+            alert('Pagamento atualizado com sucesso!');
+            fecharModalPagamento();
+            carregarPagamentosEfetuados();
+        })
+        .catch((error) => {
+            console.error('Erro ao atualizar pagamento:', error);
+            alert('Erro ao atualizar pagamento. Verifique os dados e tente novamente.');
+        });
+});
 
     // === FUNÇÃO: Registrar pagamento manual ===
-    document.getElementById('btnRegistrarPagamento').addEventListener('click', function() {
-        const uidInquilino = document.getElementById('selectInquilinoPagamento').value;
-        const mes = document.getElementById('novoMes').value;
-        const ano = document.getElementById('novoAno').value;
-        const valor = parseFloat(document.getElementById('novoValor').value);
-        const metodo = document.getElementById('novoMetodo').value;
-        const dataPagamento = document.getElementById('novaDataPagamento').value;
-        
-        if (!uidInquilino || !mes || !ano || !valor || !metodo || !dataPagamento) {
-            alert('Por favor, preencha todos os campos obrigatórios.');
-            return;
-        }
-        
-        // Verificar se já existe pagamento para este mês/ano
-        database.ref(`pagamentos/${uidInquilino}`).orderByChild('mes').equalTo(mes).once('value')
-            .then((snapshot) => {
-                let pagamentoExistente = false;
-                
-                snapshot.forEach((childSnapshot) => {
-                    const pagamento = childSnapshot.val();
-                    if (pagamento.ano == ano) {
-                        pagamentoExistente = true;
-                    }
-                });
-                
-                if (pagamentoExistente) {
-                    if (!confirm('Já existe um pagamento registrado para este mês/ano. Deseja substituí-lo?')) {
-                        return;
-                    }
+    // === FUNÇÃO: Registrar pagamento manual ===
+// === FUNÇÃO: Registrar pagamento manual ===
+document.getElementById('btnRegistrarPagamento').addEventListener('click', function() {
+    const uidInquilino = document.getElementById('selectInquilinoPagamento').value;
+    const mes = document.getElementById('novoMes').value;
+    const ano = document.getElementById('novoAno').value;
+    const valor = parseFloat(document.getElementById('novoValor').value);
+    const metodo = document.getElementById('novoMetodo').value;
+    const dataPagamento = document.getElementById('novaDataPagamento').value;
+    
+    if (!uidInquilino || !mes || !ano || !valor || !metodo || !dataPagamento) {
+        alert('Por favor, preencha todos os campos obrigatórios.');
+        return;
+    }
+    
+    // Verificar se já existe pagamento para este mês/ano
+    database.ref(`pagamentos/${uidInquilino}`).orderByChild('mes').equalTo(mes).once('value')
+        .then((snapshot) => {
+            let pagamentoExistente = false;
+            
+            snapshot.forEach((childSnapshot) => {
+                const pagamento = childSnapshot.val();
+                if (pagamento.ano == ano) {
+                    pagamentoExistente = true;
                 }
-                
-                // Criar novo pagamento
-                const novoPagamentoRef = database.ref(`pagamentos/${uidInquilino}`).push();
-                const dadosPagamento = {
-                    mes: mes,
-                    ano: ano,
-                    valor: valor,
-                    metodo: metodo,
-                    dataPagamento: new Date(dataPagamento).toISOString(),
-                    status: 'pago',
-                    tipo: 'manual',
-                    registradoPor: 'admin',
-                    dataRegistro: new Date().toISOString()
-                };
-                
-                return novoPagamentoRef.set(dadosPagamento);
-            })
-            .then(() => {
-                alert('Pagamento registrado com sucesso!');
-                
-                // Fechar modal e resetar formulário
-                const modal = bootstrap.Modal.getInstance(document.getElementById('modalNovoPagamento'));
-                modal.hide();
-                document.getElementById('formNovoPagamento').reset();
-                
-                // Atualizar dados
-                carregarPagamentosEfetuados();
-                
-                // Recarregar anos disponíveis
-                carregarAnosDisponiveis();
-            })
-            .catch((error) => {
-                console.error('Erro ao registrar pagamento:', error);
-                alert('Erro ao registrar pagamento: ' + error.message);
             });
-    });
+            
+            if (pagamentoExistente) {
+                if (!confirm('Já existe um pagamento registrado para este mês/ano. Deseja substituí-lo?')) {
+                    return;
+                }
+            }
+            
+            // CORREÇÃO: Usar formato correto para data sem problemas de fuso horário
+            const dadosPagamento = {
+                mes: mes,
+                ano: ano,
+                valor: valor,
+                metodo: metodo,
+                dataPagamento: dataPagamento + 'T00:00:00.000Z', // Data fixa sem fuso horário
+                status: 'pago',
+                tipo: 'manual',
+                registradoPor: 'admin',
+                dataRegistro: new Date().toISOString()
+            };
+            
+            return database.ref(`pagamentos/${uidInquilino}`).push().set(dadosPagamento);
+        })
+        .then(() => {
+            alert('Pagamento registrado com sucesso!');
+            
+            // Fechar modal e resetar formulário
+            const modal = bootstrap.Modal.getInstance(document.getElementById('modalNovoPagamento'));
+            modal.hide();
+            document.getElementById('formNovoPagamento').reset();
+            
+            // Atualizar dados
+            carregarPagamentosEfetuados();
+            
+            // Recarregar anos disponíveis
+            carregarAnosDisponiveis();
+        })
+        .catch((error) => {
+            console.error('Erro ao registrar pagamento:', error);
+            alert('Erro ao registrar pagamento: ' + error.message);
+        });
+});
     
     // === FUNÇÃO: Fechar modal e resetar formulário de inquilino ===
     function fecharModalInquilino() {
