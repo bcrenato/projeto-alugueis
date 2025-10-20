@@ -502,7 +502,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     };
     
-   // === FUNÇÃO: Salvar/Atualizar inquilino ===
+  // === FUNÇÃO: Salvar/Atualizar inquilino ===
 document.getElementById('btnSalvarInquilino').addEventListener('click', function() {
     const nome = document.getElementById('nome').value;
     const cpf = document.getElementById('cpf').value;
@@ -543,51 +543,105 @@ document.getElementById('btnSalvarInquilino').addEventListener('click', function
             });
             
     } else {
-        // MODO NOVO - Criar novo inquilino
+        // MODO NOVO - Criar novo inquilino (SOLUÇÃO PRÁTICA)
         if (!senha) {
             alert('Por favor, informe uma senha para o novo inquilino.');
             return;
         }
         
-        // SOLUÇÃO: Salvar as credenciais do admin antes de criar o novo usuário
-        const adminUser = auth.currentUser;
+        // Validar CPF (apenas números, 11 dígitos)
+        const cpfLimpo = cpf.replace(/\D/g, '');
+        if (cpfLimpo.length !== 11) {
+            alert('Por favor, informe um CPF válido com 11 dígitos.');
+            return;
+        }
         
-        auth.createUserWithEmailAndPassword(`${cpf}@alugueis.com`, senha)
+        // 1. Primeiro criar o usuário no Authentication
+        auth.createUserWithEmailAndPassword(`${cpfLimpo}@alugueis.com`, senha)
             .then((userCredential) => {
                 const uidNovoInquilino = userCredential.user.uid;
                 
+                console.log('✅ Usuário criado no Authentication:', uidNovoInquilino);
+                
+                // Preparar dados do inquilino
                 const inquilino = {
                     nome: nome,
-                    cpf: cpf,
+                    cpf: cpfLimpo,
                     casa: casa,
                     aluguel: aluguel,
-                    agua: agua
+                    agua: agua,
+                    uid: uidNovoInquilino, // Salvar o UID também nos dados
+                    dataCriacao: new Date().toISOString()
                 };
                 
-                // Fazer logout do novo usuário automaticamente criado
-                return auth.signOut().then(() => {
-                    // Fazer login novamente como admin usando as credenciais salvas
-                    return auth.signInWithEmailAndPassword(adminUser.email, "sua-senha-admin-aqui");
-                }).then(() => {
-                    // Agora salvar os dados do inquilino como ADMIN (com permissão)
-                    return database.ref('inquilinos/' + uidNovoInquilino).set(inquilino);
-                });
+                // 2. Tentar salvar os dados (pode falhar por permissão, mas tentamos)
+                return database.ref('inquilinos/' + uidNovoInquilino).set(inquilino)
+                    .then(() => {
+                        // Se conseguir salvar, ótimo!
+                        console.log('✅ Dados do inquilino salvos com sucesso');
+                        return { success: true, uid: uidNovoInquilino };
+                    })
+                    .catch((error) => {
+                        // Se não conseguir salvar, pelo menos o usuário foi criado
+                        console.log('⚠️ Usuário criado, mas dados não salvos (será necessário salvar manualmente):', error);
+                        return { success: false, uid: uidNovoInquilino, error: error };
+                    });
             })
-            .then(() => {
-                alert('Inquilino cadastrado com sucesso!');
-                fecharModalInquilino();
-                carregarInquilinos();
+            .then((result) => {
+                // 3. Fazer logout automático do novo usuário
+                return auth.signOut().then(() => result);
+            })
+            .then((result) => {
+                if (result.success) {
+                    // Caso de sucesso completo
+                    alert('✅ Inquilino cadastrado com sucesso!\n\n' +
+                          'Nome: ' + nome + '\n' +
+                          'CPF: ' + cpfLimpo + '\n' +
+                          'Casa: ' + casa + '\n' +
+                          'Login: ' + cpfLimpo + '@alugueis.com');
+                    
+                    fecharModalInquilino();
+                    carregarInquilinos();
+                    
+                    // Tentar restaurar sessão do admin recarregando a página
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                    
+                } else {
+                    // Caso onde apenas o usuário foi criado no Auth
+                    alert('⚠️ Usuário criado no sistema de login, mas os dados não puderam ser salvos automaticamente.\n\n' +
+                          'Dados do novo usuário:\n' +
+                          '• Login: ' + cpfLimpo + '@alugueis.com\n' +
+                          '• Senha: ' + senha + '\n' +
+                          '• UID: ' + result.uid + '\n\n' +
+                          'Faça login como administrador e adicione manualmente os dados deste inquilino.');
+                    
+                    fecharModalInquilino();
+                    
+                    // Redirecionar para login admin
+                    setTimeout(() => {
+                        window.location.href = 'admin-login.html';
+                    }, 3000);
+                }
             })
             .catch((error) => {
                 console.error('Erro ao cadastrar inquilino:', error);
                 
-                // Tentar fazer login novamente como admin em caso de erro
-                auth.signInWithEmailAndPassword(adminUser.email, "sua-senha-admin-aqui")
-                    .catch(() => {
-                        console.log('Erro ao restaurar sessão admin');
-                    });
+                // Mensagens de erro específicas
+                let mensagemErro = 'Erro ao cadastrar inquilino: ';
                 
-                alert('Erro ao cadastrar inquilino. Verifique os dados e tente novamente.');
+                if (error.code === 'auth/email-already-in-use') {
+                    mensagemErro = 'Erro: Este CPF já está cadastrado no sistema.';
+                } else if (error.code === 'auth/weak-password') {
+                    mensagemErro = 'Erro: A senha é muito fraca. Use pelo menos 6 caracteres.';
+                } else if (error.code === 'auth/invalid-email') {
+                    mensagemErro = 'Erro: CPF inválido.';
+                } else {
+                    mensagemErro += error.message;
+                }
+                
+                alert(mensagemErro);
             });
     }
 });
