@@ -502,78 +502,95 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     };
     
-    // === FUNÇÃO: Salvar/Atualizar inquilino ===
-    document.getElementById('btnSalvarInquilino').addEventListener('click', function() {
-        const nome = document.getElementById('nome').value;
-        const cpf = document.getElementById('cpf').value;
-        const senha = document.getElementById('senha').value;
-        const casa = document.getElementById('casa').value;
-        const aluguel = parseFloat(document.getElementById('aluguel').value);
-        const agua = parseFloat(document.getElementById('agua').value);
+   // === FUNÇÃO: Salvar/Atualizar inquilino ===
+document.getElementById('btnSalvarInquilino').addEventListener('click', function() {
+    const nome = document.getElementById('nome').value;
+    const cpf = document.getElementById('cpf').value;
+    const senha = document.getElementById('senha').value;
+    const casa = document.getElementById('casa').value;
+    const aluguel = parseFloat(document.getElementById('aluguel').value);
+    const agua = parseFloat(document.getElementById('agua').value);
+    
+    if (inquilinoEditando) {
+        // MODO EDIÇÃO - Atualizar inquilino existente
+        const dadosAtualizados = {
+            nome: nome,
+            cpf: cpf,
+            casa: casa,
+            aluguel: aluguel,
+            agua: agua
+        };
         
-        if (inquilinoEditando) {
-            // MODO EDIÇÃO - Atualizar inquilino existente
-            const dadosAtualizados = {
-                nome: nome,
-                cpf: cpf,
-                casa: casa,
-                aluguel: aluguel,
-                agua: agua
-            };
-            
-            if (senha && senha.trim() !== '') {
-                auth.currentUser.updatePassword(senha)
-                    .then(() => {
-                        console.log('Senha atualizada com sucesso');
-                    })
-                    .catch((error) => {
-                        console.error('Erro ao atualizar senha:', error);
-                    });
-            }
-            
-            database.ref('inquilinos/' + inquilinoEditando).update(dadosAtualizados)
+        if (senha && senha.trim() !== '') {
+            auth.currentUser.updatePassword(senha)
                 .then(() => {
-                    alert('Inquilino atualizado com sucesso!');
-                    fecharModalInquilino();
-                    carregarInquilinos();
+                    console.log('Senha atualizada com sucesso');
                 })
                 .catch((error) => {
-                    console.error('Erro ao atualizar inquilino:', error);
-                    alert('Erro ao atualizar inquilino. Verifique os dados e tente novamente.');
-                });
-                
-        } else {
-            // MODO NOVO - Criar novo inquilino
-            if (!senha) {
-                alert('Por favor, informe uma senha para o novo inquilino.');
-                return;
-            }
-            
-            auth.createUserWithEmailAndPassword(`${cpf}@alugueis.com`, senha)
-                .then((userCredential) => {
-                    const uid = userCredential.user.uid;
-                    
-                    const inquilino = {
-                        nome: nome,
-                        cpf: cpf,
-                        casa: casa,
-                        aluguel: aluguel,
-                        agua: agua
-                    };
-                    
-                    return database.ref('inquilinos/' + uid).set(inquilino);
-                })
-                .then(() => {
-                    alert('Inquilino cadastrado com sucesso!');
-                    fecharModalInquilino();
-                    carregarInquilinos();
-                })
-                .catch((error) => {
-                    console.error('Erro ao cadastrar inquilino:', error);
-                    alert('Erro ao cadastrar inquilino. Verifique os dados e tente novamente.');
+                    console.error('Erro ao atualizar senha:', error);
                 });
         }
-    });
+        
+        database.ref('inquilinos/' + inquilinoEditando).update(dadosAtualizados)
+            .then(() => {
+                alert('Inquilino atualizado com sucesso!');
+                fecharModalInquilino();
+                carregarInquilinos();
+            })
+            .catch((error) => {
+                console.error('Erro ao atualizar inquilino:', error);
+                alert('Erro ao atualizar inquilino. Verifique os dados e tente novamente.');
+            });
+            
+    } else {
+        // MODO NOVO - Criar novo inquilino
+        if (!senha) {
+            alert('Por favor, informe uma senha para o novo inquilino.');
+            return;
+        }
+        
+        // SOLUÇÃO: Salvar as credenciais do admin antes de criar o novo usuário
+        const adminUser = auth.currentUser;
+        
+        auth.createUserWithEmailAndPassword(`${cpf}@alugueis.com`, senha)
+            .then((userCredential) => {
+                const uidNovoInquilino = userCredential.user.uid;
+                
+                const inquilino = {
+                    nome: nome,
+                    cpf: cpf,
+                    casa: casa,
+                    aluguel: aluguel,
+                    agua: agua
+                };
+                
+                // Fazer logout do novo usuário automaticamente criado
+                return auth.signOut().then(() => {
+                    // Fazer login novamente como admin usando as credenciais salvas
+                    return auth.signInWithEmailAndPassword(adminUser.email, "sua-senha-admin-aqui");
+                }).then(() => {
+                    // Agora salvar os dados do inquilino como ADMIN (com permissão)
+                    return database.ref('inquilinos/' + uidNovoInquilino).set(inquilino);
+                });
+            })
+            .then(() => {
+                alert('Inquilino cadastrado com sucesso!');
+                fecharModalInquilino();
+                carregarInquilinos();
+            })
+            .catch((error) => {
+                console.error('Erro ao cadastrar inquilino:', error);
+                
+                // Tentar fazer login novamente como admin em caso de erro
+                auth.signInWithEmailAndPassword(adminUser.email, "sua-senha-admin-aqui")
+                    .catch(() => {
+                        console.log('Erro ao restaurar sessão admin');
+                    });
+                
+                alert('Erro ao cadastrar inquilino. Verifique os dados e tente novamente.');
+            });
+    }
+});
 
     // === NOVA FUNÇÃO: Salvar edição de pagamento ===
     document.getElementById('btnSalvarPagamento').addEventListener('click', function() {
