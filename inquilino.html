@@ -43,6 +43,7 @@
                             <table class="table table-striped" id="tabelaPagamentos">
                                 <thead>
                                     <tr>
+                                        <th>Tipo</th>
                                         <th>Mês/Ano</th>
                                         <th>Valor</th>
                                         <th>Data Pagamento</th>
@@ -60,7 +61,7 @@
             </div>
             
             <div class="col-md-4">
-                <div class="card">
+                <div class="card mb-4">
                     <div class="card-header">
                         <h4>Informações do Contrato</h4>
                     </div>
@@ -76,23 +77,53 @@
                         </div>
                         <p><strong>Total para PIX:</strong> R$ <span id="valorTotal"></span></p>
                         <button class="btn btn-primary w-100 mt-3" id="btnAbrirModalPagamento">
-                            Realizar Pagamento
+                            <i class="bi bi-house-check"></i> Pagar Aluguel
                         </button>
+                    </div>
+                </div>
+
+                <!-- Nova Seção: Pagamento de Contas Separadas -->
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Pagamento de Contas Separadas</h4>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">Selecione a conta para pagar:</label>
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-outline-info" id="btnPagarAguaSeparada">
+                                    <i class="bi bi-droplet"></i> Pagar Água Separada
+                                </button>
+                                <button type="button" class="btn btn-outline-warning" id="btnPagarLuzSeparada">
+                                    <i class="bi bi-lightbulb"></i> Pagar Luz Separada
+                                </button>
+                            </div>
+                        </div>
+                        <div class="alert alert-warning">
+                            <small>
+                                <strong>Atenção:</strong> Use esta opção apenas para pagar contas que estão configuradas como separadas.
+                            </small>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal de Pagamento Principal -->
+    <!-- Modal de Pagamento Principal (Aluguel + Contas Juntas) -->
     <div class="modal fade" id="modalPagamento" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Realizar Pagamento</h5>
+                    <h5 class="modal-title">Pagamento de Aluguel</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <div class="alert alert-primary">
+                        <i class="bi bi-info-circle"></i> 
+                        <strong>Pagamento completo:</strong> Aluguel + contas configuradas para pagamento conjunto.
+                    </div>
+                    
                     <div class="mb-3">
                         <label class="form-label">Selecione o método de pagamento:</label>
                         <div class="d-grid gap-2">
@@ -124,6 +155,58 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
                     <button type="button" class="btn btn-primary" id="btnContinuarPagamento" disabled>
+                        Continuar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Pagamento de Contas Separadas -->
+    <div class="modal fade" id="modalPagamentoContaSeparada" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="tituloModalContaSeparada">Pagamento de Conta Separada</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info" id="alertContaSeparada">
+                        <i class="bi bi-info-circle"></i> 
+                        <strong id="infoContaSeparada">Pagamento de conta separada</strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Selecione o método de pagamento:</label>
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-pix-conta">
+                                <i class="bi bi-qr-code"></i> PIX
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-dinheiro-conta">
+                                <i class="bi bi-cash"></i> Dinheiro
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="conteudoPixConta" class="d-none">
+                        <div class="text-center mb-3 p-3 bg-light rounded">
+                            <h5 class="text-primary">Pagamento via PIX</h5>
+                            <p class="mb-2">Valor: <strong class="fs-5">R$ <span id="valorPixConta">0,00</span></strong></p>
+                            <p class="text-muted small">Clique em "Continuar com PIX" para gerar o QR Code</p>
+                        </div>
+                    </div>
+                    
+                    <div id="conteudoDinheiroConta" class="d-none">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h5 class="text-success">Pagamento em Dinheiro</h5>
+                            <p class="mb-2">Entre em contato com o administrador para combinar o pagamento.</p>
+                            <p class="text-muted small">Após o pagamento, aguarde a confirmação do administrador.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="btnContinuarPagamentoConta" disabled>
                         Continuar
                     </button>
                 </div>
@@ -171,6 +254,7 @@
                             <div class="alert alert-info">
                                 <h6 class="alert-heading">Informações do pagamento:</h6>
                                 <div class="small">
+                                    <strong>Tipo:</strong> <span id="tipoPixModal">Aluguel</span><br>
                                     <strong>Valor:</strong> R$ <span id="valorPixModal">0,00</span><br>
                                     <strong>Beneficiário:</strong> Renato B de Carvalho<br>
                                     <strong>Identificação:</strong> <span id="identificacaoPix">-</span><br>
@@ -191,6 +275,7 @@
             </div>
         </div>
     </div>
+
 <!-- SOLUÇÃO ALTERNATIVA - Coloque no HEAD -->
 <script>
 // Forçar carregamento do QRCode se necessário
