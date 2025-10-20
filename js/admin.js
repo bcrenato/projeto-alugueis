@@ -503,7 +503,8 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
   // === FUNÇÃO: Salvar/Atualizar inquilino ===
-document.getElementById('btnSalvarInquilino').addEventListener('click', function() {
+ // === FUNÇÃO: Salvar/Atualizar inquilino ===
+    document.getElementById('btnSalvarInquilino').addEventListener('click', function() {
     const nome = document.getElementById('nome').value;
     const cpf = document.getElementById('cpf').value;
     const senha = document.getElementById('senha').value;
@@ -512,133 +513,68 @@ document.getElementById('btnSalvarInquilino').addEventListener('click', function
     const agua = parseFloat(document.getElementById('agua').value);
     
     if (inquilinoEditando) {
-        // MODO EDIÇÃO - Atualizar inquilino existente
-        const dadosAtualizados = {
-            nome: nome,
-            cpf: cpf,
-            casa: casa,
-            aluguel: aluguel,
-            agua: agua
-        };
-        
-        if (senha && senha.trim() !== '') {
-            auth.currentUser.updatePassword(senha)
+            // MODO EDIÇÃO - Atualizar inquilino existente
+            const dadosAtualizados = {
+                nome: nome,
+                cpf: cpf,
+                casa: casa,
+                aluguel: aluguel,
+                agua: agua
+            };
+            
+            if (senha && senha.trim() !== '') {
+                auth.currentUser.updatePassword(senha)
+                    .then(() => {
+                        console.log('Senha atualizada com sucesso');
+                    })
+                    .catch((error) => {
+                        console.error('Erro ao atualizar senha:', error);
+                    });
+            }
+            
+            database.ref('inquilinos/' + inquilinoEditando).update(dadosAtualizados)
                 .then(() => {
-                    console.log('Senha atualizada com sucesso');
+                    alert('Inquilino atualizado com sucesso!');
+                    fecharModalInquilino();
+                    carregarInquilinos();
                 })
                 .catch((error) => {
-                    console.error('Erro ao atualizar senha:', error);
+                    console.error('Erro ao atualizar inquilino:', error);
+                    alert('Erro ao atualizar inquilino. Verifique os dados e tente novamente.');
                 });
-        }
-        
-        database.ref('inquilinos/' + inquilinoEditando).update(dadosAtualizados)
-            .then(() => {
-                alert('Inquilino atualizado com sucesso!');
-                fecharModalInquilino();
-                carregarInquilinos();
-            })
-            .catch((error) => {
-                console.error('Erro ao atualizar inquilino:', error);
-                alert('Erro ao atualizar inquilino. Verifique os dados e tente novamente.');
-            });
+                
+        } else {
+            // MODO NOVO - Criar novo inquilino
+            if (!senha) {
+                alert('Por favor, informe uma senha para o novo inquilino.');
+                return;
+            }
             
-    } else {
-        // MODO NOVO - Criar novo inquilino (SOLUÇÃO SIMPLIFICADA)
-        if (!senha) {
-            alert('Por favor, informe uma senha para o novo inquilino.');
-            return;
-        }
-        
-        // Validar CPF (apenas números, 11 dígitos)
-        const cpfLimpo = cpf.replace(/\D/g, '');
-        if (cpfLimpo.length !== 11) {
-            alert('Por favor, informe um CPF válido com 11 dígitos.');
-            return;
-        }
-        
-        // Validar outros campos
-        if (!nome || !casa || !aluguel || !agua) {
-            alert('Por favor, preencha todos os campos obrigatórios.');
-            return;
-        }
-        
-        // Mostrar loading no botão
-        const btnSalvar = document.getElementById('btnSalvarInquilino');
-        const btnTextoOriginal = btnSalvar.textContent;
-        btnSalvar.textContent = 'Cadastrando...';
-        btnSalvar.disabled = true;
-        
-        // 1. Criar o usuário no Authentication
-        auth.createUserWithEmailAndPassword(`${cpfLimpo}@alugueis.com`, senha)
-            .then((userCredential) => {
-                const uidNovoInquilino = userCredential.user.uid;
-                
-                console.log('✅ Usuário criado no Authentication:', uidNovoInquilino);
-                
-                // 2. Fazer logout do novo usuário (importante para restaurar sessão do admin)
-                return auth.signOut().then(() => {
-                    return { 
-                        success: true, 
-                        uid: uidNovoInquilino,
-                        cpf: cpfLimpo,
-                        senha: senha
+            auth.createUserWithEmailAndPassword(`${cpf}@alugueis.com`, senha)
+                .then((userCredential) => {
+                    const uid = userCredential.user.uid;
+                    
+                    const inquilino = {
+                        nome: nome,
+                        cpf: cpf,
+                        casa: casa,
+                        aluguel: aluguel,
+                        agua: agua
                     };
+                    
+                    return database.ref('inquilinos/' + uid).set(inquilino);
+                })
+                .then(() => {
+                    alert('Inquilino cadastrado com sucesso!');
+                    fecharModalInquilino();
+                    carregarInquilinos();
+                })
+                .catch((error) => {
+                    console.error('Erro ao cadastrar inquilino:', error);
+                    alert('Erro ao cadastrar inquilino. Verifique os dados e tente novamente.');
                 });
-            })
-            .then((result) => {
-                // 3. Mostrar mensagem de sucesso com instruções claras
-                alert('✅ USUÁRIO CRIADO COM SUCESSO!\n\n' +
-                      'Dados de acesso do inquilino:\n' +
-                      '• Login: ' + result.cpf + '@alugueis.com\n' +
-                      '• Senha: ' + result.senha + '\n\n' +
-                      '⚠️ IMPORTANTE:\n' +
-                      '1. Anote esses dados de acesso\n' +
-                      '2. Faça login novamente como administrador\n' +
-                      '3. Adicione os dados do inquilino no sistema\n\n' +
-                      'Você será redirecionado para a página de login...');
-                
-                // 4. Fechar modal
-                fecharModalInquilino();
-                
-                // 5. Redirecionar para login após 3 segundos
-                setTimeout(() => {
-                    window.location.href = 'admin-login.html';
-                }, 3000);
-            })
-            .catch((error) => {
-                console.error('Erro ao cadastrar inquilino:', error);
-                
-                // Restaurar botão
-                btnSalvar.textContent = btnTextoOriginal;
-                btnSalvar.disabled = false;
-                
-                // Mensagens de erro específicas e amigáveis
-                let mensagemErro = '';
-                
-                if (error.code === 'auth/email-already-in-use') {
-                    mensagemErro = '❌ Este CPF já está cadastrado no sistema.\n\n' +
-                                   'Login: ' + cpfLimpo + '@alugueis.com\n\n' +
-                                   'Use outro CPF ou recupere a senha deste usuário.';
-                } else if (error.code === 'auth/weak-password') {
-                    mensagemErro = '❌ A senha é muito fraca.\n\n' +
-                                   'Use pelo menos 6 caracteres.';
-                } else if (error.code === 'auth/invalid-email') {
-                    mensagemErro = '❌ CPF inválido.\n\n' +
-                                   'Digite um CPF válido com 11 dígitos.';
-                } else if (error.code === 'auth/network-request-failed') {
-                    mensagemErro = '❌ Problema de conexão.\n\n' +
-                                   'Verifique sua internet e tente novamente.';
-                } else if (error.code === 'auth/operation-not-allowed') {
-                    mensagemErro = '❌ Operação não permitida.\n\n' +
-                                   'O cadastro por email/senha não está habilitado no Firebase.';
-                } else {
-                    mensagemErro = '❌ Erro ao cadastrar: ' + error.message;
-                }
-                
-                alert(mensagemErro);
-            });
-    }
-});
+        }
+    });
 
     // === NOVA FUNÇÃO: Salvar edição de pagamento ===
     document.getElementById('btnSalvarPagamento').addEventListener('click', function() {
