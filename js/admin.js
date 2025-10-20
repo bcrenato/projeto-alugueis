@@ -618,37 +618,45 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             auth.createUserWithEmailAndPassword(`${cpf}@alugueis.com`, senha)
-                .then((userCredential) => {
-                    const uid = userCredential.user.uid;
-                    
-                    const inquilino = {
-                        nome: nome,
-                        cpf: cpf,
-                        casa: casa,
-                        aluguel: aluguel,
-                        contas: {
-                            agua: {
-                                valor: agua,
-                                pagaJunto: aguaJunto
-                            },
-                            luz: {
-                                valor: luz,
-                                pagaJunto: luzJunto
-                            }
-                        }
-                    };
-                    
-                    return database.ref('inquilinos/' + uid).set(inquilino);
-                })
-                .then(() => {
-                    alert('Inquilino cadastrado com sucesso!');
-                    fecharModalInquilino();
-                    carregarInquilinos();
-                })
-                .catch((error) => {
-                    console.error('Erro ao cadastrar inquilino:', error);
-                    alert('Erro ao cadastrar inquilino. Verifique os dados e tente novamente.');
-                });
+    .then((userCredential) => {
+        const uidNovo = userCredential.user.uid;
+
+        // Recuperar dados do admin salvos no login
+        const adminEmail = localStorage.getItem('adminEmail');
+        const adminPassword = localStorage.getItem('adminPassword');
+
+        if (!adminEmail || !adminPassword) {
+            throw new Error('Credenciais do administrador não encontradas. Faça login novamente.');
+        }
+
+        // Fazer login novamente como administrador
+        return auth.signInWithEmailAndPassword(adminEmail, adminPassword)
+            .then(() => {
+                const inquilino = {
+                    nome: nome,
+                    cpf: cpf,
+                    casa: casa,
+                    aluguel: aluguel,
+                    contas: {
+                        agua: { valor: agua, pagaJunto: aguaJunto },
+                        luz: { valor: luz, pagaJunto: luzJunto }
+                    }
+                };
+
+                // Agora o admin está autenticado novamente e pode gravar
+                return database.ref('inquilinos/' + uidNovo).set(inquilino);
+            });
+    })
+    .then(() => {
+        alert('✅ Inquilino cadastrado com sucesso!');
+        fecharModalInquilino();
+        carregarInquilinos();
+    })
+    .catch((error) => {
+        console.error('Erro ao cadastrar inquilino:', error);
+        alert('Erro ao cadastrar inquilino: ' + error.message);
+    });
+
         }
     });
 
