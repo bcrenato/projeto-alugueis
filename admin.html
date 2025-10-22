@@ -60,6 +60,12 @@
                     Pagamentos Efetuados
                 </button>
             </li>
+
+            <li class="nav-item" role="presentation">
+    <button class="nav-link" id="notificacoes-tab" data-bs-toggle="tab" data-bs-target="#notificacoes" type="button" role="tab">
+        Notificações
+    </button>
+</li>           
         </ul>
 
         <!-- Conteúdo das Abas -->
@@ -188,6 +194,39 @@
         </div>
     </div>
 
+<!-- Aba 4: Notificações -->
+<div class="tab-pane fade" id="notificacoes" role="tabpanel">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">Gerenciar Notificações</h4>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovaNotificacao">
+                Nova Notificação
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i> As notificações serão exibidas para os inquilinos quando acessarem o sistema.
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Título</th>
+                            <th>Mensagem</th>
+                            <th>Data</th>
+                            <th>Status</th>
+                            <th>Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabelaNotificacoes">
+                        <!-- Dados serão preenchidos via JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+    
     <!-- Modal Adicionar Inquilino -->
     <div class="modal fade" id="modalNovoInquilino" tabindex="-1">
         <div class="modal-dialog">
@@ -399,6 +438,59 @@
         </div>
     </div>
 
+<!-- Modal Nova Notificação -->
+<div class="modal fade" id="modalNovaNotificacao" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nova Notificação</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNovaNotificacao">
+                    <div class="mb-3">
+                        <label for="tituloNotificacao" class="form-label">Título</label>
+                        <input type="text" class="form-control" id="tituloNotificacao" required 
+                               placeholder="Ex: Aluguel Vencido, Aviso Importante...">
+                    </div>
+                    <div class="mb-3">
+                        <label for="mensagemNotificacao" class="form-label">Mensagem</label>
+                        <textarea class="form-control" id="mensagemNotificacao" rows="4" required
+                                  placeholder="Digite a mensagem que será exibida para os inquilinos..."></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tipoNotificacao" class="form-label">Tipo</label>
+                        <select class="form-select" id="tipoNotificacao" required>
+                            <option value="info">Informação</option>
+                            <option value="warning">Aviso</option>
+                            <option value="danger">Urgente</option>
+                            <option value="success">Confirmação</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="inquilinoNotificacao" class="form-label">Destinatário</label>
+                        <select class="form-select" id="inquilinoNotificacao" required>
+                            <option value="todos">Todos os Inquilinos</option>
+                            <!-- Opções de inquilinos serão carregadas via JavaScript -->
+                        </select>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="notificacaoAtiva" checked>
+                        <label class="form-check-label" for="notificacaoAtiva">
+                            Notificação ativa
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnSalvarNotificacao">Salvar Notificação</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+    
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
