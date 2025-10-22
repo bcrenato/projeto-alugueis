@@ -1,5 +1,5 @@
-// inquilino.js - Versão COMPLETA com Sistema de Contas Flexíveis e Pagamento Separado
-console.log('=== INICIANDO SISTEMA PIX COM CONTAS FLEXÍVEIS ===');
+// inquilino.js - Versão COMPLETA com Sistema de Contas Flexíveis, Pagamento Separado e Notificações
+console.log('=== INICIANDO SISTEMA PIX COM CONTAS FLEXÍVEIS E NOTIFICAÇÕES ===');
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log('✅ DOM Carregado');
@@ -313,6 +313,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.log('✅ Dados carregados:', dadosInquilino);
                     exibirDadosInquilino();
                     carregarHistoricoPagamentos(uid);
+                    
+                    // CARREGAR NOTIFICAÇÕES APÓS OS DADOS PRINCIPAIS
+                    carregarNotificacoesInquilino();
                 } else {
                     console.error('❌ Dados do inquilino não encontrados para UID:', uid);
                     alert('❌ Erro: Seus dados não foram encontrados. Entre em contato com o administrador.');
@@ -322,6 +325,103 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('❌ Erro ao carregar dados:', error);
                 alert('❌ Erro ao carregar dados. Tente novamente.');
             });
+    }
+    
+    // === FUNÇÃO: Carregar e exibir notificações ===
+    function carregarNotificacoesInquilino() {
+        const userId = firebase.auth().currentUser.uid;
+        
+        console.log('🔔 Carregando notificações para usuário:', userId);
+        
+        firebase.database().ref('notificacoes').once('value').then(snapshot => {
+            const notificacoes = [];
+            
+            snapshot.forEach(notificacaoSnap => {
+                const notificacao = notificacaoSnap.val();
+                
+                // Verificar se a notificação está ativa e é para este inquilino ou para todos
+                if (notificacao.ativa && 
+                    (notificacao.destinatario === 'todos' || notificacao.destinatario === userId)) {
+                    notificacoes.push(notificacao);
+                }
+            });
+            
+            // Exibir notificações se houver alguma
+            if (notificacoes.length > 0) {
+                console.log(`📢 ${notificacoes.length} notificação(ões) encontrada(s)`);
+                exibirModalNotificacoes(notificacoes);
+            } else {
+                console.log('ℹ️ Nenhuma notificação ativa encontrada');
+            }
+        }).catch(error => {
+            console.error('❌ Erro ao carregar notificações:', error);
+        });
+    }
+
+    function exibirModalNotificacoes(notificacoes) {
+        // Criar modal dinamicamente
+        const modalHTML = `
+            <div class="modal fade" id="modalNotificacoes" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-bell-fill"></i> Notificações Importantes
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="notificacoes-list">
+                                ${notificacoes.map((notif, index) => `
+                                    <div class="alert alert-${notif.tipo} mb-3">
+                                        <h6 class="alert-heading">${notif.titulo}</h6>
+                                        <p class="mb-0">${notif.mensagem}</p>
+                                        <small class="text-muted">${formatarDataNotificacao(notif.dataCriacao)}</small>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-primary" data-bs-dismiss="modal">
+                                <i class="bi bi-check-lg"></i> Entendi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Adicionar modal ao body
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Mostrar modal após um breve delay para melhor UX
+        setTimeout(() => {
+            const modalElement = document.getElementById('modalNotificacoes');
+            if (modalElement) {
+                const modal = new bootstrap.Modal(modalElement);
+                modal.show();
+                
+                // Remover modal do DOM quando fechar
+                modalElement.addEventListener('hidden.bs.modal', function() {
+                    this.remove();
+                });
+            }
+        }, 1500);
+    }
+
+    function formatarDataNotificacao(dataString) {
+        try {
+            const data = new Date(dataString);
+            return data.toLocaleDateString('pt-BR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            return 'Data não disponível';
+        }
     }
     
     // === FUNÇÃO: Calcular total para PIX (aluguel + contas juntas) ===
@@ -749,5 +849,5 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Iniciar o sistema
     inicializarSistema();
-    console.log('✅ Sistema PIX com contas flexíveis e pagamento separado inicializado!');
+    console.log('✅ Sistema PIX com contas flexíveis, pagamento separado e notificações inicializado!');
 });
