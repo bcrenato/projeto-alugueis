@@ -545,46 +545,85 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // Carregar histórico de pagamentos
-    function carregarHistoricoPagamentos(uid) {
-        const corpoTabela = document.getElementById('corpoTabelaPagamentos');
-        corpoTabela.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Carregando...</td></tr>';
-        
-        database.ref('pagamentos/' + uid).orderByChild('dataSolicitacao').once('value')
-            .then((snapshot) => {
-                corpoTabela.innerHTML = '';
+    // Carregar histórico de pagamentos com agrupamento por mês
+function carregarHistoricoPagamentos(uid) {
+    const corpoTabela = document.getElementById('corpoTabelaPagamentos');
+    corpoTabela.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Carregando...</td></tr>';
+    
+    database.ref('pagamentos/' + uid).orderByChild('dataSolicitacao').once('value')
+        .then((snapshot) => {
+            corpoTabela.innerHTML = '';
+            
+            if (snapshot.exists()) {
+                const pagamentos = [];
                 
-                if (snapshot.exists()) {
-                    const pagamentos = [];
-                    
-                    snapshot.forEach((childSnapshot) => {
-                        const pagamento = childSnapshot.val();
-                        pagamento.id = childSnapshot.key;
-                        pagamentos.push(pagamento);
-                    });
-                    
-                    // Ordenar por data (mais recente primeiro)
-                    pagamentos.sort((a, b) => new Date(b.dataSolicitacao) - new Date(a.dataSolicitacao));
-                    
-                    if (pagamentos.length === 0) {
-                        corpoTabela.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Nenhum pagamento registrado</td></tr>';
-                        return;
+                snapshot.forEach((childSnapshot) => {
+                    const pagamento = childSnapshot.val();
+                    pagamento.id = childSnapshot.key;
+                    pagamentos.push(pagamento);
+                });
+                
+                // Ordenar por data (mais recente primeiro)
+                pagamentos.sort((a, b) => new Date(b.dataSolicitacao) - new Date(a.dataSolicitacao));
+                
+                if (pagamentos.length === 0) {
+                    corpoTabela.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Nenhum pagamento registrado</td></tr>';
+                    return;
+                }
+                
+                // Agrupar pagamentos por mês/ano
+                const pagamentosPorMes = {};
+                
+                pagamentos.forEach(pagamento => {
+                    const chaveMes = `${pagamento.mes}/${pagamento.ano}`;
+                    if (!pagamentosPorMes[chaveMes]) {
+                        pagamentosPorMes[chaveMes] = [];
                     }
+                    pagamentosPorMes[chaveMes].push(pagamento);
+                });
+                
+                // Para cada mês, criar um grupo
+                Object.keys(pagamentosPorMes).forEach(chaveMes => {
+                    const pagamentosDoMes = pagamentosPorMes[chaveMes];
                     
-                    pagamentos.forEach((pagamento) => {
+                    // Calcular total do mês
+                    const totalMes = pagamentosDoMes.reduce((total, pagamento) => {
+                        return total + (pagamento.valor || 0);
+                    }, 0);
+                    
+                    // Adicionar cabeçalho do mês
+                    const linhaCabecalho = document.createElement('tr');
+                    linhaCabecalho.className = 'table-primary';
+                    linhaCabecalho.innerHTML = `
+                        <td colspan="3" class="fw-bold">
+                            <i class="bi bi-calendar-month"></i> ${obterNomeMes(parseInt(chaveMes.split('/')[0]))}/${chaveMes.split('/')[1]}
+                        </td>
+                        <td colspan="3" class="text-end fw-bold">
+                            Total do mês: R$ ${totalMes.toFixed(2)}
+                        </td>
+                    `;
+                    corpoTabela.appendChild(linhaCabecalho);
+                    
+                    // Adicionar pagamentos do mês
+                    pagamentosDoMes.forEach(pagamento => {
                         const linha = document.createElement('tr');
                         
                         let statusClass = '';
                         let statusText = '';
+                        let statusIcon = '';
                         
                         if (pagamento.status === 'pago') {
                             statusClass = 'text-success';
                             statusText = 'Pago';
+                            statusIcon = '<i class="bi bi-check-circle-fill"></i> ';
                         } else if (pagamento.status === 'pendente') {
                             statusClass = 'text-warning';
                             statusText = 'Pendente';
+                            statusIcon = '<i class="bi bi-clock-history"></i> ';
                         } else {
                             statusClass = 'text-danger';
                             statusText = 'Em atraso';
+                            statusIcon = '<i class="bi bi-exclamation-triangle-fill"></i> ';
                         }
                         
                         const dataPagamento = pagamento.dataPagamento 
@@ -592,35 +631,61 @@ document.addEventListener('DOMContentLoaded', function() {
                             : '-';
                         
                         // Determinar tipo de pagamento para exibição
-                        let tipoPagamento = 'Aluguel';
-                        if (pagamento.tipo === 'agua_separada') {
-                            tipoPagamento = 'Água Separada';
-                        } else if (pagamento.tipo === 'luz_separada') {
-                            tipoPagamento = 'Luz Separada';
-                        } else if (pagamento.tipo === 'aluguel_com_contas') {
-                            tipoPagamento = 'Aluguel Completo';
+                        let tipoPagamento = '';
+                        let tipoIcon = '';
+                        
+                        switch(pagamento.tipo) {
+                            case 'agua_separada':
+                                tipoPagamento = 'Água Separada';
+                                tipoIcon = '<i class="bi bi-droplet"></i> ';
+                                break;
+                            case 'luz_separada':
+                                tipoPagamento = 'Luz Separada';
+                                tipoIcon = '<i class="bi bi-lightbulb"></i> ';
+                                break;
+                            case 'aluguel_com_contas':
+                            case 'aluguel':
+                            default:
+                                tipoPagamento = 'Aluguel Completo';
+                                tipoIcon = '<i class="bi bi-house-check"></i> ';
+                                break;
                         }
                         
                         linha.innerHTML = `
-                            <td>${tipoPagamento}</td>
+                            <td>${tipoIcon} ${tipoPagamento}</td>
                             <td>${pagamento.mes}/${pagamento.ano}</td>
                             <td>R$ ${(pagamento.valor || 0).toFixed(2)}</td>
                             <td>${dataPagamento}</td>
                             <td>${pagamento.metodo ? pagamento.metodo.charAt(0).toUpperCase() + pagamento.metodo.slice(1) : '-'}</td>
-                            <td class="${statusClass} fw-bold">${statusText}</td>
+                            <td class="${statusClass} fw-bold">${statusIcon}${statusText}</td>
                         `;
                         
                         corpoTabela.appendChild(linha);
                     });
-                } else {
-                    corpoTabela.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Nenhum pagamento registrado</td></tr>';
-                }
-            })
-            .catch((error) => {
-                console.error('❌ Erro ao carregar pagamentos:', error);
-                corpoTabela.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Erro ao carregar pagamentos</td></tr>';
-            });
-    }
+                    
+                    // Adicionar linha separadora entre meses
+                    const linhaSeparadora = document.createElement('tr');
+                    linhaSeparadora.innerHTML = '<td colspan="6" style="height: 10px; background-color: #f8f9fa;"></td>';
+                    corpoTabela.appendChild(linhaSeparadora);
+                });
+            } else {
+                corpoTabela.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Nenhum pagamento registrado</td></tr>';
+            }
+        })
+        .catch((error) => {
+            console.error('❌ Erro ao carregar pagamentos:', error);
+            corpoTabela.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Erro ao carregar pagamentos</td></tr>';
+        });
+}
+
+// Função auxiliar para obter nome do mês
+function obterNomeMes(numeroMes) {
+    const meses = [
+        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    return meses[numeroMes - 1] || 'Mês Desconhecido';
+}
     
     // === FUNÇÕES PIX CORRIGIDAS ===
     
