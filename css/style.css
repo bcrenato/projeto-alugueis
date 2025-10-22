@@ -158,3 +158,23 @@ body {
 .notificacoes-list .alert-success {
     border-left-color: #198754;
 }
+
+/* Estilos para a tabela de pagamentos agrupados */
+.table-group-header {
+    background-color: #e3f2fd !important;
+    font-weight: bold;
+}
+
+.table-group-divider {
+    background-color: #f8f9fa;
+    height: 15px;
+}
+
+/* Destaque para pagamentos recentes */
+.pagamento-recente {
+    border-left: 4px solid #28a745;
+}
+
+.pagamento-pendente {
+    border-left: 4px solid #ffc107;
+}
