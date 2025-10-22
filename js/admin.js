@@ -796,6 +796,146 @@ document.getElementById('btnRegistrarPagamento').addEventListener('click', funct
         inquilinoEditando = null;
     }
 
+// Funções para gerenciar notificações
+function inicializarNotificacoes() {
+    carregarNotificacoes();
+    carregarInquilinosNotificacoes();
+    
+    // Evento para salvar notificação
+    document.getElementById('btnSalvarNotificacao').addEventListener('click', salvarNotificacao);
+}
+
+function carregarInquilinosNotificacoes() {
+    const select = document.getElementById('inquilinoNotificacao');
+    
+    // Manter a opção "Todos"
+    while (select.children.length > 1) {
+        select.removeChild(select.lastChild);
+    }
+    
+    // Buscar inquilinos do Firebase
+    firebase.database().ref('inquilinos').once('value').then(snapshot => {
+        snapshot.forEach(inquilinoSnap => {
+            const inquilino = inquilinoSnap.val();
+            const option = document.createElement('option');
+            option.value = inquilinoSnap.key;
+            option.textContent = `${inquilino.nome} - ${inquilino.casa}`;
+            select.appendChild(option);
+        });
+    });
+}
+
+function carregarNotificacoes() {
+    const tbody = document.getElementById('tabelaNotificacoes');
+    tbody.innerHTML = '';
+    
+    firebase.database().ref('notificacoes').once('value').then(snapshot => {
+        snapshot.forEach(notificacaoSnap => {
+            const notificacao = notificacaoSnap.val();
+            const tr = document.createElement('tr');
+            
+            // Determinar classe baseada no tipo
+            let tipoClass = '';
+            switch(notificacao.tipo) {
+                case 'warning': tipoClass = 'table-warning'; break;
+                case 'danger': tipoClass = 'table-danger'; break;
+                case 'success': tipoClass = 'table-success'; break;
+                default: tipoClass = 'table-info';
+            }
+            
+            tr.className = tipoClass;
+            
+            tr.innerHTML = `
+                <td><strong>${notificacao.titulo}</strong></td>
+                <td>${notificacao.mensagem}</td>
+                <td>${formatarData(notificacao.dataCriacao)}</td>
+                <td>
+                    <span class="badge ${notificacao.ativa ? 'bg-success' : 'bg-secondary'}">
+                        ${notificacao.ativa ? 'Ativa' : 'Inativa'}
+                    </span>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger" onclick="excluirNotificacao('${notificacaoSnap.key}')">
+                        Excluir
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleNotificacao('${notificacaoSnap.key}', ${!notificacao.ativa})">
+                        ${notificacao.ativa ? 'Desativar' : 'Ativar'}
+                    </button>
+                </td>
+            `;
+            
+            tbody.appendChild(tr);
+        });
+    });
+}
+
+function salvarNotificacao() {
+    const titulo = document.getElementById('tituloNotificacao').value;
+    const mensagem = document.getElementById('mensagemNotificacao').value;
+    const tipo = document.getElementById('tipoNotificacao').value;
+    const destinatario = document.getElementById('inquilinoNotificacao').value;
+    const ativa = document.getElementById('notificacaoAtiva').checked;
+    
+    if (!titulo || !mensagem) {
+        alert('Preencha todos os campos obrigatórios');
+        return;
+    }
+    
+    const notificacao = {
+        titulo: titulo,
+        mensagem: mensagem,
+        tipo: tipo,
+        destinatario: destinatario,
+        ativa: ativa,
+        dataCriacao: new Date().toISOString()
+    };
+    
+    firebase.database().ref('notificacoes').push(notificacao)
+        .then(() => {
+            alert('Notificação salva com sucesso!');
+            document.getElementById('formNovaNotificacao').reset();
+            bootstrap.Modal.getInstance(document.getElementById('modalNovaNotificacao')).hide();
+            carregarNotificacoes();
+        })
+        .catch(error => {
+            alert('Erro ao salvar notificação: ' + error.message);
+        });
+}
+
+function excluirNotificacao(key) {
+    if (confirm('Tem certeza que deseja excluir esta notificação?')) {
+        firebase.database().ref('notificacoes/' + key).remove()
+            .then(() => {
+                carregarNotificacoes();
+            })
+            .catch(error => {
+                alert('Erro ao excluir notificação: ' + error.message);
+            });
+    }
+}
+
+function toggleNotificacao(key, novoStatus) {
+    firebase.database().ref('notificacoes/' + key).update({
+        ativa: novoStatus
+    })
+    .then(() => {
+        carregarNotificacoes();
+    })
+    .catch(error => {
+        alert('Erro ao atualizar notificação: ' + error.message);
+    });
+}
+
+function formatarData(dataString) {
+    const data = new Date(dataString);
+    return data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+
+    
     // === FUNÇÃO: Fechar modal de pagamento ===
     function fecharModalPagamento() {
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarPagamento'));
@@ -924,6 +1064,9 @@ document.getElementById('btnRegistrarPagamento').addEventListener('click', funct
     // Carregar dados iniciais
     carregarInquilinos();
     carregarPagamentosPendentes();
+
+    // Inicializar sistema de notificações
+inicializarNotificacoes();
     
     // Carrega pagamentos efetuados apenas se a aba estiver ativa
     setTimeout(() => {
