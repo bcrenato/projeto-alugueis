@@ -910,40 +910,83 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function carregarInquilinosNotificacoes() {
-        const select = document.getElementById('inquilinoNotificacao');
-        if (!select) return;
-        
-        // Manter a opção "Todos"
-        while (select.children.length > 1) {
-            select.removeChild(select.lastChild);
-        }
-        
-        // Buscar inquilinos do Firebase
-        database.ref('inquilinos').once('value').then(snapshot => {
-            snapshot.forEach(inquilinoSnap => {
-                const inquilino = inquilinoSnap.val();
-                const option = document.createElement('option');
-                option.value = inquilinoSnap.key;
-                option.textContent = `${inquilino.nome} - ${inquilino.casa}`;
-                select.appendChild(option);
-            });
-        });
+    const select = document.getElementById('inquilinoNotificacao');
+    if (!select) return;
+    
+    // Manter a opção "Todos"
+    while (select.children.length > 1) {
+        select.removeChild(select.lastChild);
     }
+    
+    // Buscar inquilinos do Firebase
+    database.ref('inquilinos').once('value').then(snapshot => {
+        snapshot.forEach(inquilinoSnap => {
+            const inquilino = inquilinoSnap.val();
+            const option = document.createElement('option');
+            option.value = inquilinoSnap.key;
+            option.textContent = `${inquilino.nome} - ${inquilino.casa} (${inquilino.cpf})`;
+            select.appendChild(option);
+        });
+    }).catch(error => {
+        console.error('Erro ao carregar inquilinos para notificação:', error);
+    });
+}
 
     function carregarNotificacoes() {
-        const tbody = document.getElementById('tabelaNotificacoes');
-        if (!tbody) return;
+    const tbody = document.getElementById('tabelaNotificacoes');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Carregando notificações...</td></tr>';
+    
+    database.ref('notificacoes').once('value').then(snapshot => {
+        if (!snapshot.exists()) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">Nenhuma notificação encontrada</td></tr>';
+            return;
+        }
         
-        tbody.innerHTML = '';
+        const promises = [];
+        const notificacoesComDestinatario = [];
         
-        database.ref('notificacoes').once('value').then(snapshot => {
-            if (!snapshot.exists()) {
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhuma notificação encontrada</td></tr>';
-                return;
-            }
+        snapshot.forEach(notificacaoSnap => {
+            const notificacao = notificacaoSnap.val();
+            const notificacaoCompleta = {
+                key: notificacaoSnap.key,
+                ...notificacao
+            };
             
-            snapshot.forEach(notificacaoSnap => {
-                const notificacao = notificacaoSnap.val();
+            // Se for para um inquilino específico, buscar o nome
+            if (notificacao.destinatario !== 'todos') {
+                const promise = database.ref('inquilinos/' + notificacao.destinatario).once('value')
+                    .then(inquilinoSnapshot => {
+                        if (inquilinoSnapshot.exists()) {
+                            const inquilino = inquilinoSnapshot.val();
+                            notificacaoCompleta.destinatarioNome = `${inquilino.nome} - ${inquilino.casa}`;
+                        } else {
+                            notificacaoCompleta.destinatarioNome = 'Inquilino não encontrado';
+                        }
+                        notificacoesComDestinatario.push(notificacaoCompleta);
+                    })
+                    .catch(error => {
+                        notificacaoCompleta.destinatarioNome = 'Erro ao carregar';
+                        notificacoesComDestinatario.push(notificacaoCompleta);
+                    });
+                promises.push(promise);
+            } else {
+                // Para "todos os inquilinos"
+                notificacaoCompleta.destinatarioNome = 'Todos os inquilinos';
+                notificacoesComDestinatario.push(notificacaoCompleta);
+            }
+        });
+
+        // Aguardar todas as buscas de inquilinos terminarem
+        Promise.all(promises).then(() => {
+            // Ordenar por data (mais recente primeiro)
+            notificacoesComDestinatario.sort((a, b) => new Date(b.dataCriacao) - new Date(a.dataCriacao));
+            
+            // Limpar e preencher a tabela
+            tbody.innerHTML = '';
+            
+            notificacoesComDestinatario.forEach(notificacao => {
                 const tr = document.createElement('tr');
                 
                 // Determinar classe baseada no tipo
@@ -957,15 +1000,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 tr.className = tipoClass;
                 
-                // Determinar destinatário para exibição
-                let destinatarioTexto = 'Todos os inquilinos';
-                if (notificacao.destinatario !== 'todos') {
-                    destinatarioTexto = 'Inquilino específico';
-                }
-                
                 tr.innerHTML = `
                     <td><strong>${notificacao.titulo}</strong></td>
                     <td>${notificacao.mensagem}</td>
+                    <td>${notificacao.destinatarioNome}</td>
                     <td>${formatarDataNotificacao(notificacao.dataCriacao)}</td>
                     <td>
                         <span class="badge ${notificacao.ativa ? 'bg-success' : 'bg-secondary'}">
@@ -973,13 +1011,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         </span>
                     </td>
                     <td>
-                        <button class="btn btn-sm btn-warning" onclick="editarNotificacao('${notificacaoSnap.key}')">
+                        <button class="btn btn-sm btn-warning" onclick="editarNotificacao('${notificacao.key}')">
                             Editar
                         </button>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleNotificacao('${notificacaoSnap.key}', ${!notificacao.ativa})">
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleNotificacao('${notificacao.key}', ${!notificacao.ativa})">
                             ${notificacao.ativa ? 'Desativar' : 'Ativar'}
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="excluirNotificacao('${notificacaoSnap.key}')">
+                        <button class="btn btn-sm btn-outline-danger" onclick="excluirNotificacao('${notificacao.key}')">
                             Excluir
                         </button>
                     </td>
@@ -987,11 +1025,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 tbody.appendChild(tr);
             });
-        }).catch(error => {
-            console.error('Erro ao carregar notificações:', error);
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Erro ao carregar notificações</td></tr>';
         });
-    }
+    }).catch(error => {
+        console.error('Erro ao carregar notificações:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-danger">Erro ao carregar notificações</td></tr>';
+    });
+}
 
     function salvarNotificacao() {
         const titulo = document.getElementById('tituloNotificacao').value;
