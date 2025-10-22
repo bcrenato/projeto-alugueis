@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Variáveis para armazenar estados
     let inquilinoEditando = null;
     let pagamentoEditando = null;
+    let notificacaoEditando = null;
     
     // Carregar lista de inquilinos
     function carregarInquilinos() {
@@ -353,37 +354,36 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // === FUNÇÃO: Formatar data ===
-    // === FUNÇÃO: Formatar data ===
-function formatarData(dataString) {
-    if (!dataString) return 'N/A';
-    try {
-        const data = new Date(dataString);
-        // Garantir que o fuso horário não afete a exibição
-        return data.toLocaleDateString('pt-BR', { 
-            timeZone: 'UTC',
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-    } catch (error) {
-        return dataString;
+    function formatarData(dataString) {
+        if (!dataString) return 'N/A';
+        try {
+            const data = new Date(dataString);
+            // Garantir que o fuso horário não afete a exibição
+            return data.toLocaleDateString('pt-BR', { 
+                timeZone: 'UTC',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric'
+            });
+        } catch (error) {
+            return dataString;
+        }
     }
-}
 
-// === FUNÇÃO AUXILIAR: Formatar data para input date ===
-function formatarDataParaInput(dataString) {
-    if (!dataString) return '';
-    try {
-        const data = new Date(dataString);
-        // Usar UTC para evitar problemas de fuso horário
-        const ano = data.getUTCFullYear();
-        const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
-        const dia = String(data.getUTCDate()).padStart(2, '0');
-        return `${ano}-${mes}-${dia}`;
-    } catch (error) {
-        return '';
+    // === FUNÇÃO AUXILIAR: Formatar data para input date ===
+    function formatarDataParaInput(dataString) {
+        if (!dataString) return '';
+        try {
+            const data = new Date(dataString);
+            // Usar UTC para evitar problemas de fuso horário
+            const ano = data.getUTCFullYear();
+            const mes = String(data.getUTCMonth() + 1).padStart(2, '0');
+            const dia = String(data.getUTCDate()).padStart(2, '0');
+            return `${ano}-${mes}-${dia}`;
+        } catch (error) {
+            return '';
+        }
     }
-}
     
     // === FUNÇÃO: Detectar e carregar anos existentes nos pagamentos ===
     function carregarAnosDisponiveis() {
@@ -672,117 +672,114 @@ function formatarDataParaInput(dataString) {
     });
 
     // === FUNÇÃO: Salvar edição de pagamento ===
-    // === FUNÇÃO: Salvar edição de pagamento ===
-document.getElementById('btnSalvarPagamento').addEventListener('click', function() {
-    if (!pagamentoEditando) return;
-    
-    const mes = document.getElementById('editMes').value;
-    const ano = document.getElementById('editAno').value;
-    const valor = parseFloat(document.getElementById('editValor').value);
-    const metodo = document.getElementById('editMetodo').value;
-    const dataPagamento = document.getElementById('editDataPagamento').value;
-    
-    if (!mes || !ano || !valor) {
-        alert('Por favor, preencha todos os campos obrigatórios.');
-        return;
-    }
-    
-    // CORREÇÃO: Manter a data exata sem conversão de fuso horário
-    let dataPagamentoFormatada = null;
-    if (dataPagamento) {
-        // Usar a data diretamente no formato YYYY-MM-DD
-        // Isso evita problemas de fuso horário
-        dataPagamentoFormatada = dataPagamento + 'T00:00:00.000Z';
-    }
-    
-    const dadosAtualizados = {
-        mes: mes,
-        ano: ano,
-        valor: valor,
-        metodo: metodo,
-        dataPagamento: dataPagamentoFormatada
-    };
-    
-    database.ref(`pagamentos/${pagamentoEditando.uid}/${pagamentoEditando.idPagamento}`).update(dadosAtualizados)
-        .then(() => {
-            alert('Pagamento atualizado com sucesso!');
-            fecharModalPagamento();
-            carregarPagamentosEfetuados();
-        })
-        .catch((error) => {
-            console.error('Erro ao atualizar pagamento:', error);
-            alert('Erro ao atualizar pagamento. Verifique os dados e tente novamente.');
-        });
-});
+    document.getElementById('btnSalvarPagamento').addEventListener('click', function() {
+        if (!pagamentoEditando) return;
+        
+        const mes = document.getElementById('editMes').value;
+        const ano = document.getElementById('editAno').value;
+        const valor = parseFloat(document.getElementById('editValor').value);
+        const metodo = document.getElementById('editMetodo').value;
+        const dataPagamento = document.getElementById('editDataPagamento').value;
+        
+        if (!mes || !ano || !valor) {
+            alert('Por favor, preencha todos os campos obrigatórios.');
+            return;
+        }
+        
+        // CORREÇÃO: Manter a data exata sem conversão de fuso horário
+        let dataPagamentoFormatada = null;
+        if (dataPagamento) {
+            // Usar a data diretamente no formato YYYY-MM-DD
+            // Isso evita problemas de fuso horário
+            dataPagamentoFormatada = dataPagamento + 'T00:00:00.000Z';
+        }
+        
+        const dadosAtualizados = {
+            mes: mes,
+            ano: ano,
+            valor: valor,
+            metodo: metodo,
+            dataPagamento: dataPagamentoFormatada
+        };
+        
+        database.ref(`pagamentos/${pagamentoEditando.uid}/${pagamentoEditando.idPagamento}`).update(dadosAtualizados)
+            .then(() => {
+                alert('Pagamento atualizado com sucesso!');
+                fecharModalPagamento();
+                carregarPagamentosEfetuados();
+            })
+            .catch((error) => {
+                console.error('Erro ao atualizar pagamento:', error);
+                alert('Erro ao atualizar pagamento. Verifique os dados e tente novamente.');
+            });
+    });
 
     // === FUNÇÃO: Registrar pagamento manual ===
-    // === FUNÇÃO: Registrar pagamento manual ===
-// === FUNÇÃO: Registrar pagamento manual ===
-document.getElementById('btnRegistrarPagamento').addEventListener('click', function() {
-    const uidInquilino = document.getElementById('selectInquilinoPagamento').value;
-    const mes = document.getElementById('novoMes').value;
-    const ano = document.getElementById('novoAno').value;
-    const valor = parseFloat(document.getElementById('novoValor').value);
-    const metodo = document.getElementById('novoMetodo').value;
-    const dataPagamento = document.getElementById('novaDataPagamento').value;
-    
-    if (!uidInquilino || !mes || !ano || !valor || !metodo || !dataPagamento) {
-        alert('Por favor, preencha todos os campos obrigatórios.');
-        return;
-    }
-    
-    // Verificar se já existe pagamento para este mês/ano
-    database.ref(`pagamentos/${uidInquilino}`).orderByChild('mes').equalTo(mes).once('value')
-        .then((snapshot) => {
-            let pagamentoExistente = false;
-            
-            snapshot.forEach((childSnapshot) => {
-                const pagamento = childSnapshot.val();
-                if (pagamento.ano == ano) {
-                    pagamentoExistente = true;
+    document.getElementById('btnRegistrarPagamento').addEventListener('click', function() {
+        const uidInquilino = document.getElementById('selectInquilinoPagamento').value;
+        const mes = document.getElementById('novoMes').value;
+        const ano = document.getElementById('novoAno').value;
+        const valor = parseFloat(document.getElementById('novoValor').value);
+        const metodo = document.getElementById('novoMetodo').value;
+        const dataPagamento = document.getElementById('novaDataPagamento').value;
+        
+        if (!uidInquilino || !mes || !ano || !valor || !metodo || !dataPagamento) {
+            alert('Por favor, preencha todos os campos obrigatórios.');
+            return;
+        }
+        
+        // Verificar se já existe pagamento para este mês/ano
+        database.ref(`pagamentos/${uidInquilino}`).orderByChild('mes').equalTo(mes).once('value')
+            .then((snapshot) => {
+                let pagamentoExistente = false;
+                
+                snapshot.forEach((childSnapshot) => {
+                    const pagamento = childSnapshot.val();
+                    if (pagamento.ano == ano) {
+                        pagamentoExistente = true;
+                    }
+                });
+                
+                if (pagamentoExistente) {
+                    if (!confirm('Já existe um pagamento registrado para este mês/ano. Deseja substituí-lo?')) {
+                        return;
+                    }
                 }
+                
+                // CORREÇÃO: Usar formato correto para data sem problemas de fuso horário
+                const dadosPagamento = {
+                    mes: mes,
+                    ano: ano,
+                    valor: valor,
+                    metodo: metodo,
+                    dataPagamento: dataPagamento + 'T00:00:00.000Z', // Data fixa sem fuso horário
+                    status: 'pago',
+                    tipo: 'manual',
+                    registradoPor: 'admin',
+                    dataRegistro: new Date().toISOString()
+                };
+                
+                return database.ref(`pagamentos/${uidInquilino}`).push().set(dadosPagamento);
+            })
+            .then(() => {
+                alert('Pagamento registrado com sucesso!');
+                
+                // Fechar modal e resetar formulário
+                const modal = bootstrap.Modal.getInstance(document.getElementById('modalNovoPagamento'));
+                modal.hide();
+                document.getElementById('formNovoPagamento').reset();
+                
+                // Atualizar dados
+                carregarPagamentosEfetuados();
+                
+                // Recarregar anos disponíveis
+                carregarAnosDisponiveis();
+            })
+            .catch((error) => {
+                console.error('Erro ao registrar pagamento:', error);
+                alert('Erro ao registrar pagamento: ' + error.message);
             });
-            
-            if (pagamentoExistente) {
-                if (!confirm('Já existe um pagamento registrado para este mês/ano. Deseja substituí-lo?')) {
-                    return;
-                }
-            }
-            
-            // CORREÇÃO: Usar formato correto para data sem problemas de fuso horário
-            const dadosPagamento = {
-                mes: mes,
-                ano: ano,
-                valor: valor,
-                metodo: metodo,
-                dataPagamento: dataPagamento + 'T00:00:00.000Z', // Data fixa sem fuso horário
-                status: 'pago',
-                tipo: 'manual',
-                registradoPor: 'admin',
-                dataRegistro: new Date().toISOString()
-            };
-            
-            return database.ref(`pagamentos/${uidInquilino}`).push().set(dadosPagamento);
-        })
-        .then(() => {
-            alert('Pagamento registrado com sucesso!');
-            
-            // Fechar modal e resetar formulário
-            const modal = bootstrap.Modal.getInstance(document.getElementById('modalNovoPagamento'));
-            modal.hide();
-            document.getElementById('formNovoPagamento').reset();
-            
-            // Atualizar dados
-            carregarPagamentosEfetuados();
-            
-            // Recarregar anos disponíveis
-            carregarAnosDisponiveis();
-        })
-        .catch((error) => {
-            console.error('Erro ao registrar pagamento:', error);
-            alert('Erro ao registrar pagamento: ' + error.message);
-        });
-});
+    });
     
     // === FUNÇÃO: Fechar modal e resetar formulário de inquilino ===
     function fecharModalInquilino() {
@@ -796,146 +793,6 @@ document.getElementById('btnRegistrarPagamento').addEventListener('click', funct
         inquilinoEditando = null;
     }
 
-// Funções para gerenciar notificações
-function inicializarNotificacoes() {
-    carregarNotificacoes();
-    carregarInquilinosNotificacoes();
-    
-    // Evento para salvar notificação
-    document.getElementById('btnSalvarNotificacao').addEventListener('click', salvarNotificacao);
-}
-
-function carregarInquilinosNotificacoes() {
-    const select = document.getElementById('inquilinoNotificacao');
-    
-    // Manter a opção "Todos"
-    while (select.children.length > 1) {
-        select.removeChild(select.lastChild);
-    }
-    
-    // Buscar inquilinos do Firebase
-    firebase.database().ref('inquilinos').once('value').then(snapshot => {
-        snapshot.forEach(inquilinoSnap => {
-            const inquilino = inquilinoSnap.val();
-            const option = document.createElement('option');
-            option.value = inquilinoSnap.key;
-            option.textContent = `${inquilino.nome} - ${inquilino.casa}`;
-            select.appendChild(option);
-        });
-    });
-}
-
-function carregarNotificacoes() {
-    const tbody = document.getElementById('tabelaNotificacoes');
-    tbody.innerHTML = '';
-    
-    firebase.database().ref('notificacoes').once('value').then(snapshot => {
-        snapshot.forEach(notificacaoSnap => {
-            const notificacao = notificacaoSnap.val();
-            const tr = document.createElement('tr');
-            
-            // Determinar classe baseada no tipo
-            let tipoClass = '';
-            switch(notificacao.tipo) {
-                case 'warning': tipoClass = 'table-warning'; break;
-                case 'danger': tipoClass = 'table-danger'; break;
-                case 'success': tipoClass = 'table-success'; break;
-                default: tipoClass = 'table-info';
-            }
-            
-            tr.className = tipoClass;
-            
-            tr.innerHTML = `
-                <td><strong>${notificacao.titulo}</strong></td>
-                <td>${notificacao.mensagem}</td>
-                <td>${formatarData(notificacao.dataCriacao)}</td>
-                <td>
-                    <span class="badge ${notificacao.ativa ? 'bg-success' : 'bg-secondary'}">
-                        ${notificacao.ativa ? 'Ativa' : 'Inativa'}
-                    </span>
-                </td>
-                <td>
-                    <button class="btn btn-sm btn-outline-danger" onclick="excluirNotificacao('${notificacaoSnap.key}')">
-                        Excluir
-                    </button>
-                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleNotificacao('${notificacaoSnap.key}', ${!notificacao.ativa})">
-                        ${notificacao.ativa ? 'Desativar' : 'Ativar'}
-                    </button>
-                </td>
-            `;
-            
-            tbody.appendChild(tr);
-        });
-    });
-}
-
-function salvarNotificacao() {
-    const titulo = document.getElementById('tituloNotificacao').value;
-    const mensagem = document.getElementById('mensagemNotificacao').value;
-    const tipo = document.getElementById('tipoNotificacao').value;
-    const destinatario = document.getElementById('inquilinoNotificacao').value;
-    const ativa = document.getElementById('notificacaoAtiva').checked;
-    
-    if (!titulo || !mensagem) {
-        alert('Preencha todos os campos obrigatórios');
-        return;
-    }
-    
-    const notificacao = {
-        titulo: titulo,
-        mensagem: mensagem,
-        tipo: tipo,
-        destinatario: destinatario,
-        ativa: ativa,
-        dataCriacao: new Date().toISOString()
-    };
-    
-    firebase.database().ref('notificacoes').push(notificacao)
-        .then(() => {
-            alert('Notificação salva com sucesso!');
-            document.getElementById('formNovaNotificacao').reset();
-            bootstrap.Modal.getInstance(document.getElementById('modalNovaNotificacao')).hide();
-            carregarNotificacoes();
-        })
-        .catch(error => {
-            alert('Erro ao salvar notificação: ' + error.message);
-        });
-}
-
-function excluirNotificacao(key) {
-    if (confirm('Tem certeza que deseja excluir esta notificação?')) {
-        firebase.database().ref('notificacoes/' + key).remove()
-            .then(() => {
-                carregarNotificacoes();
-            })
-            .catch(error => {
-                alert('Erro ao excluir notificação: ' + error.message);
-            });
-    }
-}
-
-function toggleNotificacao(key, novoStatus) {
-    firebase.database().ref('notificacoes/' + key).update({
-        ativa: novoStatus
-    })
-    .then(() => {
-        carregarNotificacoes();
-    })
-    .catch(error => {
-        alert('Erro ao atualizar notificação: ' + error.message);
-    });
-}
-
-function formatarData(dataString) {
-    const data = new Date(dataString);
-    return data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR', {
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
-
-
-    
     // === FUNÇÃO: Fechar modal de pagamento ===
     function fecharModalPagamento() {
         const modal = bootstrap.Modal.getInstance(document.getElementById('modalEditarPagamento'));
@@ -943,6 +800,17 @@ function formatarData(dataString) {
         
         document.getElementById('formEditarPagamento').reset();
         pagamentoEditando = null;
+    }
+
+    // === FUNÇÃO: Fechar modal de notificação ===
+    function fecharModalNotificacao() {
+        const modal = bootstrap.Modal.getInstance(document.getElementById('modalNovaNotificacao'));
+        modal.hide();
+        
+        document.getElementById('formNovaNotificacao').reset();
+        notificacaoEditando = null;
+        document.querySelector('#modalNovaNotificacao .modal-title').textContent = 'Nova Notificação';
+        document.getElementById('btnSalvarNotificacao').textContent = 'Salvar Notificação';
     }
     
     // === EVENTO: Quando o modal é fechado ===
@@ -952,6 +820,10 @@ function formatarData(dataString) {
 
     document.getElementById('modalEditarPagamento').addEventListener('hidden.bs.modal', function() {
         fecharModalPagamento();
+    });
+
+    document.getElementById('modalNovaNotificacao').addEventListener('hidden.bs.modal', function() {
+        fecharModalNotificacao();
     });
 
     // === EVENTO: Quando o modal de pagamento for aberto ===
@@ -1028,6 +900,211 @@ function formatarData(dataString) {
         }
     };
 
+    // === FUNÇÕES PARA GERENCIAR NOTIFICAÇÕES ===
+    function inicializarNotificacoes() {
+        carregarNotificacoes();
+        carregarInquilinosNotificacoes();
+        
+        // Evento para salvar notificação
+        document.getElementById('btnSalvarNotificacao').addEventListener('click', salvarNotificacao);
+    }
+
+    function carregarInquilinosNotificacoes() {
+        const select = document.getElementById('inquilinoNotificacao');
+        if (!select) return;
+        
+        // Manter a opção "Todos"
+        while (select.children.length > 1) {
+            select.removeChild(select.lastChild);
+        }
+        
+        // Buscar inquilinos do Firebase
+        database.ref('inquilinos').once('value').then(snapshot => {
+            snapshot.forEach(inquilinoSnap => {
+                const inquilino = inquilinoSnap.val();
+                const option = document.createElement('option');
+                option.value = inquilinoSnap.key;
+                option.textContent = `${inquilino.nome} - ${inquilino.casa}`;
+                select.appendChild(option);
+            });
+        });
+    }
+
+    function carregarNotificacoes() {
+        const tbody = document.getElementById('tabelaNotificacoes');
+        if (!tbody) return;
+        
+        tbody.innerHTML = '';
+        
+        database.ref('notificacoes').once('value').then(snapshot => {
+            if (!snapshot.exists()) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center">Nenhuma notificação encontrada</td></tr>';
+                return;
+            }
+            
+            snapshot.forEach(notificacaoSnap => {
+                const notificacao = notificacaoSnap.val();
+                const tr = document.createElement('tr');
+                
+                // Determinar classe baseada no tipo
+                let tipoClass = '';
+                switch(notificacao.tipo) {
+                    case 'warning': tipoClass = 'table-warning'; break;
+                    case 'danger': tipoClass = 'table-danger'; break;
+                    case 'success': tipoClass = 'table-success'; break;
+                    default: tipoClass = 'table-info';
+                }
+                
+                tr.className = tipoClass;
+                
+                // Determinar destinatário para exibição
+                let destinatarioTexto = 'Todos os inquilinos';
+                if (notificacao.destinatario !== 'todos') {
+                    destinatarioTexto = 'Inquilino específico';
+                }
+                
+                tr.innerHTML = `
+                    <td><strong>${notificacao.titulo}</strong></td>
+                    <td>${notificacao.mensagem}</td>
+                    <td>${formatarDataNotificacao(notificacao.dataCriacao)}</td>
+                    <td>
+                        <span class="badge ${notificacao.ativa ? 'bg-success' : 'bg-secondary'}">
+                            ${notificacao.ativa ? 'Ativa' : 'Inativa'}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" onclick="editarNotificacao('${notificacaoSnap.key}')">
+                            Editar
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleNotificacao('${notificacaoSnap.key}', ${!notificacao.ativa})">
+                            ${notificacao.ativa ? 'Desativar' : 'Ativar'}
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="excluirNotificacao('${notificacaoSnap.key}')">
+                            Excluir
+                        </button>
+                    </td>
+                `;
+                
+                tbody.appendChild(tr);
+            });
+        }).catch(error => {
+            console.error('Erro ao carregar notificações:', error);
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Erro ao carregar notificações</td></tr>';
+        });
+    }
+
+    function salvarNotificacao() {
+        const titulo = document.getElementById('tituloNotificacao').value;
+        const mensagem = document.getElementById('mensagemNotificacao').value;
+        const tipo = document.getElementById('tipoNotificacao').value;
+        const destinatario = document.getElementById('inquilinoNotificacao').value;
+        const ativa = document.getElementById('notificacaoAtiva').checked;
+        
+        if (!titulo || !mensagem) {
+            alert('Preencha todos os campos obrigatórios');
+            return;
+        }
+        
+        const notificacao = {
+            titulo: titulo,
+            mensagem: mensagem,
+            tipo: tipo,
+            destinatario: destinatario,
+            ativa: ativa,
+            dataCriacao: new Date().toISOString()
+        };
+        
+        let operacao;
+        if (notificacaoEditando) {
+            // Modo edição
+            operacao = database.ref('notificacoes/' + notificacaoEditando).update(notificacao);
+        } else {
+            // Modo criação
+            operacao = database.ref('notificacoes').push(notificacao);
+        }
+        
+        operacao
+            .then(() => {
+                alert(`Notificação ${notificacaoEditando ? 'atualizada' : 'salva'} com sucesso!`);
+                document.getElementById('formNovaNotificacao').reset();
+                bootstrap.Modal.getInstance(document.getElementById('modalNovaNotificacao')).hide();
+                carregarNotificacoes();
+                notificacaoEditando = null;
+            })
+            .catch(error => {
+                alert(`Erro ao ${notificacaoEditando ? 'atualizar' : 'salvar'} notificação: ` + error.message);
+            });
+    }
+
+    // === FUNÇÃO GLOBAL: Editar notificação ===
+    window.editarNotificacao = function(key) {
+        notificacaoEditando = key;
+        
+        database.ref('notificacoes/' + key).once('value')
+            .then(snapshot => {
+                if (snapshot.exists()) {
+                    const notificacao = snapshot.val();
+                    
+                    // Preencher o formulário com os dados atuais
+                    document.getElementById('tituloNotificacao').value = notificacao.titulo;
+                    document.getElementById('mensagemNotificacao').value = notificacao.mensagem;
+                    document.getElementById('tipoNotificacao').value = notificacao.tipo;
+                    document.getElementById('inquilinoNotificacao').value = notificacao.destinatario;
+                    document.getElementById('notificacaoAtiva').checked = notificacao.ativa;
+                    
+                    // Alterar o título do modal e texto do botão
+                    document.querySelector('#modalNovaNotificacao .modal-title').textContent = 'Editar Notificação';
+                    document.getElementById('btnSalvarNotificacao').textContent = 'Atualizar Notificação';
+                    
+                    // Abrir o modal
+                    const modal = new bootstrap.Modal(document.getElementById('modalNovaNotificacao'));
+                    modal.show();
+                }
+            })
+            .catch(error => {
+                alert('Erro ao carregar dados da notificação: ' + error.message);
+            });
+    };
+
+    // === FUNÇÃO GLOBAL: Excluir notificação ===
+    window.excluirNotificacao = function(key) {
+        if (confirm('Tem certeza que deseja excluir esta notificação?\n\nEsta ação não pode ser desfeita!')) {
+            database.ref('notificacoes/' + key).remove()
+                .then(() => {
+                    alert('Notificação excluída com sucesso!');
+                    carregarNotificacoes();
+                })
+                .catch(error => {
+                    alert('Erro ao excluir notificação: ' + error.message);
+                });
+        }
+    };
+
+    // === FUNÇÃO GLOBAL: Toggle notificação ===
+    window.toggleNotificacao = function(key, novoStatus) {
+        database.ref('notificacoes/' + key).update({
+            ativa: novoStatus
+        })
+        .then(() => {
+            carregarNotificacoes();
+        })
+        .catch(error => {
+            alert('Erro ao atualizar notificação: ' + error.message);
+        });
+    };
+
+    function formatarDataNotificacao(dataString) {
+        try {
+            const data = new Date(dataString);
+            return data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch (error) {
+            return 'Data não disponível';
+        }
+    }
+
     // === EVENT LISTENERS para as abas ===
     const tabs = document.querySelectorAll('#adminTabs button[data-bs-toggle="tab"]');
     tabs.forEach(tab => {
@@ -1039,6 +1116,8 @@ function formatarData(dataString) {
                 carregarPagamentosPendentes();
             } else if (target === '#inquilinos') {
                 carregarInquilinos();
+            } else if (target === '#notificacoes') {
+                carregarNotificacoes();
             }
         });
     });
@@ -1066,7 +1145,7 @@ function formatarData(dataString) {
     carregarPagamentosPendentes();
 
     // Inicializar sistema de notificações
-inicializarNotificacoes();
+    inicializarNotificacoes();
     
     // Carrega pagamentos efetuados apenas se a aba estiver ativa
     setTimeout(() => {
